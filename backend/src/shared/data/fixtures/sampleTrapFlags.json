@@ -1,0 +1,161 @@
+{
+  "documentId": "550e8400-e29b-41d4-a716-446655440001",
+  "documentType": "offer_letter",
+  "flags": [
+    {
+      "clauseId": "7f8a9b2c-3d4e-5f6a-7b8c-9d0e1f2a3b4c",
+      "type": "NOTICE_PERIOD_TRAP",
+      "severity": "HIGH",
+      "title": "90-Day Notice Period",
+      "explanation": "The offer letter specifies a 90-day notice period for resignation, which is significantly higher than the industry standard of 30-60 days. This severely restricts your ability to join a new employer quickly and gives the company excessive leverage during exit negotiations.",
+      "recommendation": "Negotiate down to 60 days maximum. If they insist on 90 days, request a 'buyout clause' allowing you to pay a fixed amount (e.g., 1 month's gross salary) to reduce notice to 30 days. Get any agreement in writing.",
+      "pageNumber": 2,
+      "textSpan": {
+        "startOffset": 1245,
+        "endOffset": 1387,
+        "text": "The Employee shall give ninety (90) days prior written notice to the Company of his/her intention to terminate employment. During the notice period, the Employee shall continue to perform all duties and responsibilities as assigned."
+      },
+      "boundingBox": {
+        "page": 2,
+        "x": 72.5,
+        "y": 412.3,
+        "width": 450.2,
+        "height": 48.6
+      },
+      "regulatoryReference": "Industrial Disputes Act, 1947 - Section 25F (retrenchment notice); No statutory maximum for private sector notice periods, but courts have struck down unreasonably long periods as restraint of trade."
+    },
+    {
+      "clauseId": "8a9b0c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d",
+      "type": "TRAINING_BOND",
+      "severity": "CRITICAL",
+      "title": "₹2 Lakh Training Bond with 24-Month Lock-in",
+      "explanation": "The agreement imposes a ₹2,00,000 liquidated damages clause if you leave before completing 24 months. This is framed as 'training recovery' but applies regardless of actual training received. Such bonds are enforceable only if the employer proves actual training expenditure and the amount is a genuine pre-estimate of loss.",
+      "recommendation": "Request reduction to 12 months with pro-rata recovery. Ask for a cap at actual documented training costs (not a fixed ₹2L). Ensure the clause excludes resignation due to constructive dismissal, relocation, or medical grounds. Get clarity on what 'training' was provided.",
+      "pageNumber": 2,
+      "textSpan": {
+        "startOffset": 2156,
+        "endOffset": 2398,
+        "text": "In consideration of the extensive training provided by the Company, the Employee agrees to serve the Company for a minimum period of twenty-four (24) months from the Date of Joining. In the event the Employee resigns or is terminated for cause before completion of this period, the Employee shall pay to the Company a sum of Rs. 2,00,000 (Rupees Two Lakhs Only) as liquidated damages towards training costs incurred."
+      },
+      "boundingBox": {
+        "page": 2,
+        "x": 72.5,
+        "y": 580.1,
+        "width": 450.2,
+        "height": 72.4
+      },
+      "regulatoryReference": "Indian Contract Act, 1872 - Section 74 (liquidated damages must be genuine pre-estimate); Labour courts often strike down excessive bonds. See: Tocarta vs. State (Madras HC) - bonds must reflect actual training cost."
+    },
+    {
+      "clauseId": "9b0c1d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+      "type": "VARIABLE_PAY_AMBIGUITY",
+      "severity": "MEDIUM",
+      "title": "Performance Bonus Criteria Vaguely Defined",
+      "explanation": "The ₹2.5L performance bonus (13.5% of CTC) depends on 'individual performance rating and company profitability' but lacks specific, measurable criteria. No minimum guaranteed payout, no defined rating scale, and company profitability is outside your control.",
+      "recommendation": "Request: (1) Written definition of rating scale (1-5) with clear descriptors, (2) Minimum guaranteed bonus (e.g., 50% of target) if rating ≥ 3.5, (3) Semi-annual performance reviews with documented feedback, (4) Cap on company profitability factor (e.g., bonus paid at 100% if company meets 80% of revenue target).",
+      "pageNumber": 1,
+      "textSpan": {
+        "startOffset": 567,
+        "endOffset": 712,
+        "text": "The Employee shall be eligible for an annual performance bonus of up to Rs. 2,50,000, subject to individual performance rating and overall company profitability as determined by the management at its sole discretion."
+      },
+      "boundingBox": {
+        "page": 1,
+        "x": 72.5,
+        "y": 320.8,
+        "width": 450.2,
+        "height": 36.2
+      },
+      "regulatoryReference": "Payment of Bonus Act, 1965 - applies to establishments with 20+ employees; statutory bonus is 8.33%-20% of salary. Contractual bonus terms must be clear and not illusory."
+    },
+    {
+      "clauseId": "0c1d2e5f-6a7b-8c9d-0e1f-2a3b4c5d6e7f",
+      "type": "NON_COMPETE_OVERREACH",
+      "severity": "HIGH",
+      "title": "Overbroad Non-Compete (50km Radius, 12 Months)",
+      "explanation": "A 50km radius in Bengaluru covers the entire metro area and major tech corridors (Whitefield, Electronic City, Outer Ring Road). Combined with 12-month duration, this effectively bars you from working in your field in the city. Indian courts generally disfavor non-competes post-employment.",
+      "recommendation": "Negotiate: (1) Reduce radius to 5-10km (specific business district), (2) Reduce duration to 3-6 months, (3) Add carve-out for non-competing roles, (4) Require company to pay 'garden leave' salary during non-compete period if enforced. Get mutual agreement that clause is void if you're laid off.",
+      "pageNumber": 3,
+      "textSpan": {
+        "startOffset": 3012,
+        "endOffset": 3201,
+        "text": "For a period of twelve (12) months after termination of employment, the Employee shall not, within a radius of fifty (50) kilometers from any Company office, directly or indirectly engage in, be employed by, or provide services to any business that competes with the Company's products or services."
+      },
+      "boundingBox": {
+        "page": 3,
+        "x": 72.5,
+        "y": 210.4,
+        "width": 450.2,
+        "height": 60.8
+      },
+      "regulatoryReference": "Indian Contract Act, 1872 - Section 27 (agreements in restraint of trade are void). Exception: reasonable restraints during employment. Post-employment non-competes are prima facie void unless protecting trade secrets (Niranjan Shankar Golikari vs. Century Spinning)."
+    },
+    {
+      "clauseId": "1d2e3f6a-7b8c-9d0e-1f2a-3b4c5d6e7f8a",
+      "type": "MOONLIGHTING_BAN",
+      "severity": "MEDIUM",
+      "title": "Blanket Ban on Moonlighting/Side Projects",
+      "explanation": "The clause prohibits any 'other employment, business, or commercial activity' without prior written consent. This includes open-source contributions, freelance work, content creation, or investing in startups. Overly broad and may not be enforceable for activities outside working hours using own resources.",
+      "recommendation": "Request explicit carve-outs for: (1) Open-source contributions, (2) Passive investments (<5% equity), (3) Creative work unrelated to company business, (4) Teaching/mentoring ≤4 hours/week. Require company to respond to consent requests within 15 days.",
+      "pageNumber": 3,
+      "textSpan": {
+        "startOffset": 3205,
+        "endOffset": 3356,
+        "text": "The Employee shall not, during the term of employment, engage in any other employment, business, profession, or commercial activity, whether for remuneration or otherwise, without the prior written consent of the Company."
+      },
+      "boundingBox": {
+        "page": 3,
+        "x": 72.5,
+        "y": 275.9,
+        "width": 450.2,
+        "height": 36.2
+      },
+      "regulatoryReference": "No specific statute; governed by employment contract and Section 27 of Contract Act. Courts balance employer's legitimate interest vs employee's right to livelihood. Recent IT sector debates (Wipro, Infosys policies) highlight evolving norms."
+    },
+    {
+      "clauseId": "2e3f4a7b-8c9d-0e1f-2a3b-4c5d6e7f8a9b",
+      "type": "JOINING_BONUS_CLAWBACK",
+      "severity": "HIGH",
+      "title": "Full Joining Bonus Clawback within 12 Months",
+      "explanation": "The ₹1L joining bonus must be repaid in full if you leave within 12 months, regardless of reason (including layoff, medical issues, or relocation). No pro-rata reduction. This creates a financial penalty for leaving early.",
+      "recommendation": "Negotiate pro-rata clawback (e.g., 1/12th reduction per month of service). Add exclusions for: involuntary termination, medical emergency, spouse relocation, company breach of contract. Ensure clawback is only from pre-tax amount.",
+      "pageNumber": 1,
+      "textSpan": {
+        "startOffset": 890,
+        "endOffset": 1023,
+        "text": "The Company shall pay a one-time joining bonus of Rs. 1,00,000 along with the first month's salary. In the event the Employee resigns or is terminated for cause within twelve (12) months from the Date of Joining, the Employee shall refund the entire joining bonus amount to the Company within thirty (30) days of separation."
+      },
+      "boundingBox": {
+        "page": 1,
+        "x": 72.5,
+        "y": 480.2,
+        "width": 450.2,
+        "height": 48.6
+      },
+      "regulatoryReference": "Contract Act Section 74 - clawback must be genuine pre-estimate of loss (recruitment cost). Full recovery regardless of tenure may be struck down as penalty."
+    },
+    {
+      "clauseId": "3f4a5b8c-9d0e-1f2a-3b4c-5d6e7f8a9b0c",
+      "type": "IP_ASSIGNMENT_OVERREACH",
+      "severity": "MEDIUM",
+      "title": "Broad IP Assignment Covering Personal Projects",
+      "explanation": "The IP clause assigns 'all inventions, developments, and works created during employment' to the company, without limiting to work done on company time, using company resources, or related to company business. This could cover personal side projects, open-source work, or pre-existing IP.",
+      "recommendation": "Request: (1) Limit to inventions 'related to company business or developed using company resources/time', (2) Pre-existing IP exclusion schedule (list your prior projects), (3) Open-source contribution carve-out, (4) Mandatory disclosure process for personal projects with company review within 30 days.",
+      "pageNumber": 3,
+      "textSpan": {
+        "startOffset": 3360,
+        "endOffset": 3542,
+        "text": "All intellectual property rights in any inventions, discoveries, improvements, designs, code, documentation, or other works created, conceived, or developed by the Employee during the term of employment, whether during working hours or otherwise, shall vest exclusively in the Company."
+      },
+      "boundingBox": {
+        "page": 3,
+        "x": 72.5,
+        "y": 340.1,
+        "width": 450.2,
+        "height": 48.6
+      },
+      "regulatoryReference": "Patents Act, 1970 - Section 6 (entitlement to patent); Copyright Act, 1957 - Section 17 (first owner). Employment contracts can assign IP but must be reasonable in scope. Courts consider: use of employer resources, relation to business, terms of employment."
+    }
+  ],
+  "assessedAt": "2024-10-18T22:40:00Z"
+}

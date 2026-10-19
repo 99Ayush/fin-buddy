@@ -1,0 +1,79 @@
+{
+  "documentType": "offer_letter",
+  "documentId": "550e8400-e29b-41d4-a716-446655440001",
+  "version": "1.0",
+  "issuedDate": "2024-06-15",
+  "validUntil": "2024-07-15",
+  "company": {
+    "name": "TechNova Solutions Private Limited",
+    "cin": "U72900KA2020PTC123456",
+    "gstin": "29AABCT1234F1Z5",
+    "address": "12th Floor, Tower B, Embassy Tech Village, Devarabeesanahalli, Bengaluru, Karnataka 560103",
+    "pan": "AABCT1234F"
+  },
+  "candidate": {
+    "name": "Ayush Kumar",
+    "email": "ayush.kumar@email.com",
+    "phone": "+91-9876543210",
+    "address": "Flat 302, Sunshine Apartments, Koramangala 4th Block, Bengaluru 560034"
+  },
+  "compensation": {
+    "ctcAnnual": 1850000,
+    "ctcMonthly": 154167,
+    "fixedComponent": {
+      "baseSalary": 740000,
+      "hra": 296000,
+      "specialAllowance": 314000,
+      "pfEmployer": 88800,
+      "pfEmployee": 88800,
+      "gratuity": 35600,
+      "professionalTax": 2400,
+      "performanceBonus": 0,
+      "joiningBonus": 0,
+      "retentionBonus": 0,
+      "clawbackPeriodMonths": 0
+    },
+    "variableComponent": {
+      "performanceBonus": 250000,
+      "bonusCriteria": "Based on individual performance rating (1-5) and company profitability metrics. Minimum rating of 3.5/5 required for eligibility.",
+      "bonusFrequency": "annual"
+    },
+    "esop": {
+      "totalOptions": 5000,
+      "strikePrice": 10,
+      "totalCompanyShares": 10000000,
+      "cliffMonths": 12,
+      "vestingSchedule": [
+        { "month": 12, "percentage": 25 },
+        { "month": 24, "percentage": 25 },
+        { "month": 36, "percentage": 25 },
+        { "month": 48, "percentage": 25 }
+      ],
+      "currentValuation": 150
+    },
+    "joiningBonus": 100000,
+    "joiningBonusClawbackMonths": 12
+  },
+  "contractualTerms": {
+    "noticePeriodDays": 90,
+    "probationPeriodMonths": 6,
+    "bondDurationMonths": 24,
+    "bondPenaltyAmount": 200000,
+    "nonCompeteRadiusKm": 50,
+    "nonCompeteDurationMonths": 12,
+    "moonlightingAllowed": false,
+    "ipAssignmentScope": "broad"
+  },
+  "workLocation": {
+    "city": "Bengaluru",
+    "state": "Karnataka",
+    "pincode": "560103",
+    "workMode": "hybrid"
+  },
+  "metadata": {
+    "extractedAt": "2024-10-18T22:30:00Z",
+    "extractionConfidence": 0.94,
+    "sourceFileName": "TechNova_Offer_Letter_Ayush_Kumar.pdf",
+    "pageCount": 3
+  }
+}

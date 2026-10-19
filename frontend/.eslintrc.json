@@ -1,0 +1,7 @@
+{
+  "env": { "browser": true, "es2022": true },
+  "extends": ["plugin:react/recommended"],
+  "settings": { "react": { "version": "detect" } },
+  "parserOptions": { "ecmaVersion": 2022, "sourceType": "module", "ecmaFeatures": { "jsx": true } },
+  "rules": { "react/prop-types": "off", "react/react-in-jsx-scope": "off", "react/no-unescaped-entities": "off" }
+}

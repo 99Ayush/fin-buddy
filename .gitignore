@@ -1,0 +1,10 @@
+# Secrets and local runtime configuration
+.env
+.env.*
+!.env.example
+
+# Generated dependencies and build output
+node_modules/
+dist/
+coverage/
+backend/eval/results_*.json
