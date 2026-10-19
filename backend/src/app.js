@@ -64,10 +64,10 @@ app.use('/api/offers', offersModule.router);
 // ============================================
 
 // P2: Salary & Tax module
-// app.use('/api/salarytax', require('./module/salarytax').router);
+app.use('/api/salarytax', require('./module/salarytax').router);
 
 // P2: Money Plan module
-// app.use('/api/moneyplan', require('./module/moneyplan').router);
+app.use('/api/moneyplan', require('./module/moneyplan').router);
 
 // P3: Home/Dashboard module
 // app.use('/api/home', require('./module/home').router);
