@@ -7,6 +7,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from './components/AppLayout';
+import { useAuth } from './context/AuthContext';
 
 // Lazy-load P1 pages (code splitting)
 const DocumentsPage = React.lazy(() => import('./module/documents/pages/DocumentsPage').catch(() => null));
@@ -17,6 +18,10 @@ const HomePage = React.lazy(() => import('./module/home/pages/HomePage').catch((
 const SalaryTaxPage = React.lazy(() => import('./module/salarytax/pages/SalaryTaxPage').catch(() => null));
 const MoneyPlanPage = React.lazy(() => import('./module/moneyplan/pages/MoneyPlanPage').catch(() => null));
 const AssistantPage = React.lazy(() => import('./module/assistant/pages/AssistantPage').catch(() => null));
+
+// Auth pages
+const LoginPage    = React.lazy(() => import('./module/auth/LoginPage'));
+const RegisterPage = React.lazy(() => import('./module/auth/RegisterPage'));
 
 // Loading fallback
 const LoadingFallback = () => (
@@ -86,91 +91,129 @@ class ErrorBoundary extends React.Component {
 }
 
 /**
+ * Guards a route — redirects to /login if not authenticated.
+ * Shows nothing while the session check is still in-flight.
+ */
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return user ? children : <Navigate to="/login" replace />;
+};
+
+/**
  * Main App Routes Component
  * P1 ONLY modifies the /documents and /offers route registrations below.
  */
 const AppRoutes = () => {
   return (
-    <AppLayout>
-      <Routes>
-        {/* ============================================
-             P1 ROUTES (ONLY THESE TWO LINES MODIFIED BY P1)
-             ============================================ */}
-        <Route
-          path="/documents"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <DocumentsPage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/offers"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <OffersPage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
+    <Routes>
+      {/* ============================================
+           AUTH ROUTES — rendered without AppLayout
+           ============================================ */}
+      <Route
+        path="/login"
+        element={
+          <React.Suspense fallback={<LoadingFallback />}>
+            <LoginPage />
+          </React.Suspense>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <React.Suspense fallback={<LoadingFallback />}>
+            <RegisterPage />
+          </React.Suspense>
+        }
+      />
 
-        {/* ============================================
-             P2 ROUTES (DO NOT MODIFY)
-             ============================================ */}
-        <Route
-          path="/salarytax"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <SalaryTaxPage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/moneyplan"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <MoneyPlanPage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
+      {/* ============================================
+           APP ROUTES — rendered inside AppLayout
+           ============================================ */}
+      <Route path="/*" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <Routes>
+              {/* ============================================
+                   P1 ROUTES (ONLY THESE TWO LINES MODIFIED BY P1)
+                   ============================================ */}
+              <Route
+                path="/documents"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <DocumentsPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/offers"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <OffersPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
 
-        {/* ============================================
-             P3 ROUTES (DO NOT MODIFY)
-             ============================================ */}
-        <Route
-          path="/home"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <HomePage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/assistant"
-          element={
-            <ErrorBoundary fallback={ErrorFallback}>
-              <React.Suspense fallback={<LoadingFallback />}>
-                <AssistantPage />
-              </React.Suspense>
-            </ErrorBoundary>
-          }
-        />
+              {/* ============================================
+                   P2 ROUTES (DO NOT MODIFY)
+                   ============================================ */}
+              <Route
+                path="/salarytax"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <SalaryTaxPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/moneyplan"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <MoneyPlanPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
 
-        {/* Default redirect to P1 landing */}
-        <Route path="/" element={<Navigate to="/documents" replace />} />
-        <Route path="/home" element={<Navigate to="/documents" replace />} />
-        <Route path="*" element={<Navigate to="/documents" replace />} />
-      </Routes>
-    </AppLayout>
+              {/* ============================================
+                   P3 ROUTES (DO NOT MODIFY)
+                   ============================================ */}
+              <Route
+                path="/home"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <HomePage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
+              <Route
+                path="/assistant"
+                element={
+                  <ErrorBoundary fallback={ErrorFallback}>
+                    <React.Suspense fallback={<LoadingFallback />}>
+                      <AssistantPage />
+                    </React.Suspense>
+                  </ErrorBoundary>
+                }
+              />
+
+              {/* Default redirect to P1 landing */}
+              <Route path="/" element={<Navigate to="/documents" replace />} />
+              <Route path="*" element={<Navigate to="/documents" replace />} />
+            </Routes>
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+    </Routes>
   );
 };
 

@@ -1,5 +1,6 @@
-import React, { useState, createContext, useContext } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState, createContext, useContext, useRef, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 // Toast Context for professional notification toasts instead of alert()
 const ToastContext = createContext({
@@ -19,10 +20,31 @@ const SettingsContext = createContext({
 export const useSettings = () => useContext(SettingsContext);
 
 export const AppLayout = ({ children }) => {
-  const [lang, setLang] = useState('en');
+  const [lang, setLang]   = useState('en');
   const [depth, setDepth] = useState('fresher');
-  const [toasts, setToasts] = useState([]);
-  const location = useLocation();
+  const [toasts, setToasts]         = useState([]);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+  const location   = useLocation();
+  const navigate   = useNavigate();
+  const { user, logout } = useAuth();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClick(e) {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const handleLogout = async () => {
+    setProfileOpen(false);
+    await logout();
+    navigate('/login', { replace: true });
+  };
 
   const showToast = (message, type = 'info', duration = 3500) => {
     const id = Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
@@ -160,6 +182,51 @@ export const AppLayout = ({ children }) => {
                     Veteran
                   </button>
                 </div>
+
+                {/* Profile Button */}
+                {user && (
+                  <div className="profile-menu" ref={profileRef}>
+                    <button
+                      id="btn-profile"
+                      className="profile-avatar"
+                      onClick={() => setProfileOpen(o => !o)}
+                      aria-label="Your profile"
+                      title={user.name}
+                    >
+                      {user.name?.[0]?.toUpperCase() || '⚙️'}
+                    </button>
+                    {profileOpen && (
+                      <div className="profile-dropdown">
+                        <div className="profile-dropdown-header">
+                          <div className="profile-avatar-lg">{user.name?.[0]?.toUpperCase()}</div>
+                          <div>
+                            <p className="profile-name">{user.name}</p>
+                            <p className="profile-email">{user.email}</p>
+                          </div>
+                        </div>
+                        <div className="profile-dropdown-body">
+                          <div className="profile-field">
+                            <span className="profile-field-label">User ID</span>
+                            <span className="profile-field-value profile-id">{user.id}</span>
+                          </div>
+                          <div className="profile-field">
+                            <span className="profile-field-label">Member since</span>
+                            <span className="profile-field-value">
+                              {new Date(user.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          id="btn-logout"
+                          className="profile-logout"
+                          onClick={handleLogout}
+                        >
+                          🚪 Sign out
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </header>
