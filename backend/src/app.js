@@ -5,13 +5,19 @@
 
 require('dotenv').config();
 
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
+const { connectDB } = require('./config/db');
+
+const express    = require('express');
+const cors       = require('cors');
+const helmet     = require('helmet');
+const cookieParser = require('cookie-parser');
 
 // Import module routers (P1 owned)
 const documentsModule = require('./module/documents');
-const offersModule = require('./module/offers');
+const offersModule    = require('./module/offers');
+
+// Auth module
+const { authRouter } = require('./module/auth');
 
 const app = express();
 
@@ -31,6 +37,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser()); // required for req.cookies in auth middleware
 
 // Request logging (sanitized)
 app.use((req, res, next) => {
@@ -47,6 +54,12 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
 });
+
+// ============================================
+// AUTH ROUTES
+// ============================================
+
+app.use('/api/auth', authRouter);
 
 // ============================================
 // P1 MODULE ROUTES (ONLY these two)
@@ -120,5 +133,7 @@ module.exports = app;
 // Keep the app importable for Supertest while making `npm start` useful.
 if (require.main === module) {
   const port = Number(process.env.PORT || 3000);
-  app.listen(port, () => console.log(`Fin-Buddy API listening on http://localhost:${port}`));
+  connectDB().then(() => {
+    app.listen(port, () => console.log(`🚀  Fin-Buddy API listening on http://localhost:${port}`));
+  });
 }
