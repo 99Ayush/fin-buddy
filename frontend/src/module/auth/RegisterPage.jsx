@@ -7,9 +7,11 @@ export default function RegisterPage() {
   const { register } = useAuth();
   const navigate     = useNavigate();
 
-  const [form, setForm]       = useState({ name: '', email: '', password: '', confirm: '' });
-  const [error, setError]     = useState('');
-  const [loading, setLoading] = useState(false);
+  const [form, setForm]         = useState({ name: '', email: '', password: '', confirm: '' });
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [showPwd, setShowPwd]   = useState(false);
+  const [showConf, setShowConf] = useState(false);
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -90,32 +92,52 @@ export default function RegisterPage() {
 
           <label className="auth-label" htmlFor="register-password">
             Password <span className="auth-hint">(min 8 characters)</span>
-            <input
-              id="register-password"
-              name="password"
-              type="password"
-              className="auth-input"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              autoComplete="new-password"
-              required
-            />
+            <div className="auth-input-wrap">
+              <input
+                id="register-password"
+                name="password"
+                type={showPwd ? 'text' : 'password'}
+                className="auth-input"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowPwd(p => !p)}
+                aria-label={showPwd ? 'Hide password' : 'Show password'}
+              >
+                {showPwd ? '🙈' : '👁️'}
+              </button>
+            </div>
           </label>
 
           <label className="auth-label" htmlFor="register-confirm">
             Confirm password
-            <input
-              id="register-confirm"
-              name="confirm"
-              type="password"
-              className="auth-input"
-              placeholder="••••••••"
-              value={form.confirm}
-              onChange={handleChange}
-              autoComplete="new-password"
-              required
-            />
+            <div className="auth-input-wrap">
+              <input
+                id="register-confirm"
+                name="confirm"
+                type={showConf ? 'text' : 'password'}
+                className="auth-input"
+                placeholder="••••••••"
+                value={form.confirm}
+                onChange={handleChange}
+                autoComplete="new-password"
+                required
+              />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowConf(p => !p)}
+                aria-label={showConf ? 'Hide password' : 'Show password'}
+              >
+                {showConf ? '🙈' : '👁️'}
+              </button>
+            </div>
           </label>
 
           <button

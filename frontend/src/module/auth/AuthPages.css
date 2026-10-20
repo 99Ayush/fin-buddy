@@ -130,6 +130,34 @@
 
 .auth-input::placeholder { color: #9ca3af; }
 
+/* Password visibility wrapper */
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input-wrap .auth-input {
+  flex: 1;
+  padding-right: 2.6rem;
+}
+
+.auth-eye {
+  position: absolute;
+  right: 0.7rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.auth-eye:hover { color: #2563eb; }
+
 /* Submit button */
 .auth-btn {
   width: 100%;

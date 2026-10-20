@@ -646,3 +646,140 @@ a:hover {
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* ==========================================================================
+   Profile Menu (navbar)
+   ========================================================================== */
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.profile-avatar:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.5);
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 280px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.14);
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdown-in 0.18s cubic-bezier(0.22,1,0.36,1) both;
+}
+
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.profile-dropdown-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.profile-avatar-lg {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profile-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.profile-email {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin: 2px 0 0;
+  word-break: break-all;
+}
+
+.profile-dropdown-body {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-field-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.profile-field-value {
+  font-size: 0.82rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+.profile-id {
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  color: #6366f1;
+  word-break: break-all;
+}
+
+.profile-logout {
+  width: 100%;
+  padding: 11px 16px;
+  background: #fff5f5;
+  border: none;
+  border-top: 1px solid #fee2e2;
+  color: #dc2626;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.profile-logout:hover {
+  background: #fee2e2;
+}

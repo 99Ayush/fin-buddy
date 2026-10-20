@@ -3,13 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './AuthPages.css';
 
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate  = useNavigate();
 
-  const [form, setForm]     = useState({ email: '', password: '' });
-  const [error, setError]   = useState('');
+  const [form, setForm]       = useState({ email: '', password: '' });
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
 
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -67,17 +69,27 @@ export default function LoginPage() {
 
           <label className="auth-label" htmlFor="login-password">
             Password
-            <input
-              id="login-password"
-              name="password"
-              type="password"
-              className="auth-input"
-              placeholder="••••••••"
-              value={form.password}
-              onChange={handleChange}
-              autoComplete="current-password"
-              required
-            />
+            <div className="auth-input-wrap">
+              <input
+                id="login-password"
+                name="password"
+                type={showPwd ? 'text' : 'password'}
+                className="auth-input"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={handleChange}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowPwd(p => !p)}
+                aria-label={showPwd ? 'Hide password' : 'Show password'}
+              >
+                {showPwd ? '🙈' : '👁️'}
+              </button>
+            </div>
           </label>
 
           <button
