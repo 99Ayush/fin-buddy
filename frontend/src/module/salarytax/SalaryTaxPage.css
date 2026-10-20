@@ -1,0 +1,174 @@
+.salary-tax-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.st-header h2 { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; color: #0f172a; }
+.st-header p  { font-size: 0.9rem; color: #64748b; margin-top: 0.25rem; }
+
+.st-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.card-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1.25rem;
+}
+
+/* Slider */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.ctc-slider {
+  flex: 1;
+  accent-color: #2563eb;
+  height: 6px;
+  cursor: pointer;
+}
+
+.ctc-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #2563eb;
+  min-width: 90px;
+  text-align: right;
+}
+
+/* Breakdown Grid */
+.breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.breakdown-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+}
+
+.breakdown-item.highlight-item {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border-color: #93c5fd;
+}
+
+.bi-label { font-size: 0.78rem; font-weight: 600; color: #64748b; margin-bottom: 0.35rem; }
+.bi-value { font-size: 1.2rem; font-weight: 800; color: #0f172a; }
+.highlight-item .bi-value { color: #1d4ed8; }
+.bi-sub   { font-size: 0.72rem; color: #94a3b8; margin-top: 0.2rem; }
+
+/* Regime Comparator */
+.regime-row {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.regime-col {
+  flex: 1;
+  min-width: 140px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.regime-col.regime-winner {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.regime-name { font-size: 0.85rem; font-weight: 700; color: #475569; }
+.regime-tax  { font-size: 1.8rem; font-weight: 800; color: #0f172a; }
+.regime-label { font-size: 0.75rem; color: #94a3b8; }
+
+.winner-badge {
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.regime-vs {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.saving-note {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+}
+
+/* 80C Planner */
+.planner-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.neg-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.neg-input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.9rem;
+  color: #0f172a;
+  outline: none;
+  max-width: 260px;
+  transition: border-color 0.2s;
+}
+.neg-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+
+.planner-bar-wrap {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.planner-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.planner-status {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
