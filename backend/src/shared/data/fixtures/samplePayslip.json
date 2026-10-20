@@ -1,0 +1,67 @@
+{
+  "documentType": "payslip",
+  "documentId": "550e8400-e29b-41d4-a716-446655440002",
+  "version": "1.0",
+  "payPeriod": {
+    "month": 9,
+    "year": 2024,
+    "startDate": "2024-09-01",
+    "endDate": "2024-09-30",
+    "daysWorked": 22,
+    "daysPaid": 22
+  },
+  "company": {
+    "name": "TechNova Solutions Private Limited",
+    "cin": "U72900KA2020PTC123456",
+    "gstin": "29AABCT1234F1Z5",
+    "address": "12th Floor, Tower B, Embassy Tech Village, Devarabeesanahalli, Bengaluru, Karnataka 560103",
+    "pan": "AABCT1234F"
+  },
+  "employee": {
+    "name": "Ayush Kumar",
+    "employeeId": "TN-EMP-2024-0042",
+    "pan": "ABCPK1234A",
+    "aadhaar": "1234 5678 9012",
+    "uan": "100123456789",
+    "designation": "Senior Software Engineer",
+    "department": "Engineering - Platform",
+    "dateOfJoining": "2024-07-01",
+    "bankAccount": "XXXXXXXXXX5678",
+    "ifsc": "HDFC0001234"
+  },
+  "earnings": {
+    "basic": 61667,
+    "hra": 24667,
+    "specialAllowance": 26167,
+    "conveyanceAllowance": 1600,
+    "medicalAllowance": 1250,
+    "leaveTravelAllowance": 0,
+    "performanceBonus": 0,
+    "otherAllowances": 0,
+    "grossEarnings": 115351
+  },
+  "deductions": {
+    "pfEmployee": 7400,
+    "pfEmployer": 7400,
+    "esiEmployee": 0,
+    "esiEmployer": 0,
+    "professionalTax": 200,
+    "tds": 8500,
+    "advanceSalary": 0,
+    "loanRecovery": 0,
+    "otherDeductions": 0,
+    "totalDeductions": 16100
+  },
+  "netPay": 99251,
+  "ytd": {
+    "grossYtd": 692106,
+    "tdsYtd": 51000,
+    "pfYtd": 44400
+  },
+  "metadata": {
+    "extractedAt": "2024-10-18T22:35:00Z",
+    "extractionConfidence": 0.97,
+    "sourceFileName": "Payslip_Sept_2024_Ayush_Kumar.pdf",
+    "pageCount": 1
+  }
+}
