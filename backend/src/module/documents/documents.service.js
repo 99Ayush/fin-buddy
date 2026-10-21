@@ -1,6 +1,14 @@
 /**
  * Documents Module - Service Layer (documents.service.js)
- * Pipeline coordination: Upload -> OCR -> Mask -> Extract -> Validate -> Store
+ * Pipeline coordination: Upload -> OCR -> Mask -> Grok validation -> Extract -> Validate -> Store
+ *
+ * HONESTY RULES enforced here:
+ * - The document type is decided by Grok reading the redacted text, not by a client hint.
+ * - If the model cannot be reached, the request fails with a real error instead of a guess.
+ * - Extracted fields that are not present in the document are omitted, never defaulted.
+ * - Every monetary value is reported as-is from the document, and flagged when it cannot
+ *   be matched verbatim against the source text.
+ * - All derived figures (take-home, tax) come from deterministic code, never from the model.
  */
 
 const path = require('path');
@@ -22,6 +30,14 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
 const ALLOWED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg'];
 const SESSION_TTL_MS = 15 * 60 * 1000;
+const SUPPORTED_DOCUMENT_TYPES = ['offer_letter', 'payslip', 'form16', 'loan_agreement'];
+
+const DOCUMENT_TYPE_LABELS = {
+  offer_letter: 'Offer letter / employment agreement',
+  payslip: 'Payslip',
+  form16: 'Form 16 / tax certificate',
+  loan_agreement: 'Loan agreement / sanction letter',
+};
 
 function purgeExpiredSessions() {
   const sessions = global.__docSessions;
@@ -63,47 +79,64 @@ function generateSessionToken() {
 }
 
 /**
- * Process uploaded document through full pipeline
+ * Process uploaded document through the validation half of the pipeline.
  * @param {object} file - Multer file object
- * @param {string} documentType - Document type (offer_letter, payslip, form16, loan_agreement)
  * @param {string} userId - User identifier
  * @returns {Promise<object>} Processing result with masked preview and session token
  */
-async function processUpload(file, documentType, userId) {
+async function processUpload(file, userId) {
   purgeExpiredSessions();
   const sessionId = mask.initMaskSession();
   const sessionToken = generateSessionToken();
 
   try {
-    // Step 1: OCR Extraction
+    // Step 1: OCR / text-layer extraction (local, no network)
     const ocrResult = await ocr.processDocument(file.buffer, file.mimetype);
 
-    // Step 2: PII Masking
+    if (!ocrResult.text || !ocrResult.text.trim()) {
+      const error = new Error('No readable text was found in this file. If it is a scan, upload a clearer copy or a text-based PDF.');
+      error.code = 'NO_TEXT_FOUND';
+      error.statusCode = 422;
+      throw error;
+    }
+
+    // Step 2: PII masking (local, before any external call)
     const maskedText = mask.maskText(ocrResult.text, sessionId);
     const piiDetected = mask.detectPii(ocrResult.text);
     const maskStats = mask.getMaskStats(sessionId);
 
-    // Step 3: Quick trap scan (for preview)
-    const quickTraps = trapDetector.quickScan(maskedText);
+    // Step 3: Grok reads the redacted document and decides whether it is a supported type.
+    const classification = await classifyDocument(maskedText);
+    if (!classification.accepted) {
+      const error = new Error(
+        classification.reason ||
+        'This file is not a supported document. Upload an offer letter, payslip, Form 16, loan agreement, or loan sanction letter.'
+      );
+      error.code = 'UNSUPPORTED_DOCUMENT';
+      error.statusCode = 422;
+      error.classification = classification;
+      throw error;
+    }
+    const documentType = classification.documentType;
 
-    // Step 4: Store session data for extraction step
+    // Session data for the extraction step. Raw text stays in volatile memory only.
     const sessionData = {
       sessionToken,
       sessionId,
       documentType,
+      classification,
       userId,
-      originalText: ocrResult.text, // Stored temporarily in memory only
+      originalFileName: file.originalname,
       maskedText,
       ocrMetadata: ocrResult.metadata,
       ocrWords: ocrResult.words,
       ocrPages: ocrResult.pages,
       piiDetected,
       maskStats,
-      quickTraps,
+      quickTraps: [],
       createdAt: new Date().toISOString(),
     };
 
-    // Store in memory (in production, use Redis with TTL)
     global.__docSessions = global.__docSessions || new Map();
     global.__docSessions.set(sessionToken, sessionData);
 
@@ -119,24 +152,139 @@ async function processUpload(file, documentType, userId) {
     return {
       sessionToken,
       documentType,
+      classification,
       maskedText,
       piiDetected,
       maskStats,
-      quickTraps,
+      quickTraps: [],
       ocrMetadata: {
         pageCount: ocrResult.metadata.pageCount,
         isScanned: ocrResult.metadata.isScanned,
         processingTimeMs: ocrResult.metadata.processingTimeMs,
       },
-      previewPages: ocrResult.pages.map(p => ({
+      // Page-level text is intentionally not echoed back: the redacted full text
+      // is the only copy the client receives, so no raw PII leaves the server.
+      previewPages: ocrResult.pages.map((p) => ({
         pageNumber: p.pageNumber,
-        text: p.text.substring(0, 500) + (p.text.length > 500 ? '...' : ''),
+        characterCount: p.text.length,
       })),
     };
   } catch (error) {
     mask.clearMaskMap(sessionId);
     throw error;
   }
+}
+
+/**
+ * Local keyword classifier. Used ONLY when no LLM provider key is configured, so the
+ * app still works offline. Its verdict is labelled `source: 'local'` and shown as such.
+ * @param {string} maskedText
+ * @returns {object}
+ */
+function heuristicClassify(maskedText) {
+  const text = maskedText.toLowerCase();
+
+  if (/form\s*16|certificate under section 203|tan\s*(?:no|number)/i.test(text)) {
+    return { accepted: true, documentType: 'form16', confidence: 0.6, source: 'local', label: DOCUMENT_TYPE_LABELS.form16 };
+  }
+  if (/payslip|pay\s*slip|net\s*(?:pay|salary)|gross\s*(?:earnings|salary)/i.test(text)) {
+    return { accepted: true, documentType: 'payslip', confidence: 0.6, source: 'local', label: DOCUMENT_TYPE_LABELS.payslip };
+  }
+  if (/loan\s*(?:agreement|sanction|account)|emi|principal\s+amount|interest\s+rate|lender/i.test(text)) {
+    return { accepted: true, documentType: 'loan_agreement', confidence: 0.6, source: 'local', label: DOCUMENT_TYPE_LABELS.loan_agreement };
+  }
+  if (/offer\s+letter|letter\s+of\s+(?:offer|appointment)|cost\s+to\s+company|ctc|notice\s+period/i.test(text)) {
+    return { accepted: true, documentType: 'offer_letter', confidence: 0.6, source: 'local', label: DOCUMENT_TYPE_LABELS.offer_letter };
+  }
+
+  return {
+    accepted: false,
+    documentType: null,
+    confidence: 0,
+    source: 'local',
+    reason: 'This file was not recognised as an offer letter, payslip, Form 16, loan agreement, or loan sanction letter.',
+  };
+}
+
+/**
+ * Ask the configured LLM (xAI Grok by default) whether the document is one of the
+ * supported types, and which one.
+ *
+ * @param {string} maskedText - PII-redacted document text
+ * @returns {Promise<object>} { accepted, documentType, confidence, reason, label, source }
+ * @throws {Error} When a provider is configured but the call fails (no silent guessing)
+ */
+async function classifyDocument(maskedText) {
+  if (!llm.isLlmConfigured()) {
+    return heuristicClassify(maskedText);
+  }
+
+  const schema = {
+    type: 'object',
+    properties: {
+      accepted: { type: 'boolean', description: 'true only for a supported document type' },
+      documentType: { type: 'string', enum: SUPPORTED_DOCUMENT_TYPES },
+      confidence: { type: 'number', minimum: 0, maximum: 1 },
+      evidence: { type: 'string', description: 'Short verbatim quote from the document that identifies it' },
+      reason: { type: 'string', description: 'Why it was accepted or rejected' },
+    },
+    required: ['accepted', 'documentType', 'confidence', 'reason'],
+  };
+
+  const prompt = `You are validating an uploaded Indian financial or employment document before it is processed.
+
+Read the redacted document text below and decide whether it is EXACTLY ONE of these supported types:
+- offer_letter: a job offer letter, appointment letter, or employment agreement
+- payslip: a monthly salary slip / pay stub
+- form16: a Form 16 / TDS certificate issued under Section 203
+- loan_agreement: a loan agreement, loan sanction letter, or loan statement
+
+Rules:
+1. Set accepted=false for anything else (invoices, bank statements, receipts, resumes, ID cards, tax returns, property papers, random text, blank pages).
+2. Set accepted=true only when the document's own text clearly identifies it as one of the four types above. If it is ambiguous, set accepted=false.
+3. documentType must be the single best match when accepted=true; use the first enum value when accepted=false.
+4. Do not infer content that is not written in the text. Do not guess from the file name.
+5. Put a short verbatim quote that proves your decision in "evidence".
+
+Redacted document text:
+"""
+${maskedText.slice(0, 16000)}
+"""`;
+
+  let result;
+  try {
+    result = await llm.callLlmStructured(prompt, schema);
+  } catch (error) {
+    console.error('[DOCUMENTS] Document validation failed:', error.message);
+    const wrapped = new Error(
+      `Document validation could not be completed (${error.message}). Please retry in a moment.`
+    );
+    wrapped.code = 'VALIDATION_UNAVAILABLE';
+    wrapped.statusCode = 503;
+    throw wrapped;
+  }
+
+  if (result?.accepted === true && SUPPORTED_DOCUMENT_TYPES.includes(result.documentType)) {
+    return {
+      accepted: true,
+      documentType: result.documentType,
+      confidence: Number(result.confidence) || 0,
+      evidence: result.evidence || '',
+      reason: result.reason || '',
+      label: DOCUMENT_TYPE_LABELS[result.documentType],
+      source: 'ai',
+    };
+  }
+
+  return {
+    accepted: false,
+    documentType: null,
+    confidence: Number(result?.confidence) || 0,
+    evidence: result?.evidence || '',
+    reason: result?.reason || 'This file is not one of the supported document categories.',
+    label: null,
+    source: 'ai',
+  };
 }
 
 /**
@@ -151,137 +299,177 @@ async function extractStructured(sessionToken, userId) {
 
   const { maskedText, documentType, ocrWords, ocrPages, sessionId } = session;
 
-  try {
-    // Get schema for document type
-    const schema = getSchema(documentType);
-    if (!schema) throw new Error(`No schema for document type: ${documentType}`);
+  const schema = getSchema(documentType);
+  if (!schema) throw new Error(`No schema for document type: ${documentType}`);
 
-    // Build extraction prompt
-    const prompt = buildExtractionPrompt(documentType, maskedText);
+  const prompt = buildExtractionPrompt(documentType, maskedText);
+  const raw = await llm.callLlmStructured(prompt, schema);
 
-    // Call LLM with structured output
-    const extracted = await llm.callLlmStructured(prompt, schema);
+  // Drop unknown keys and empty values: a field the document does not state is
+  // simply absent, so it can never be reported as a number that was never there.
+  const extracted = pruneToSchema(raw, schema);
 
-    // The document identity and extraction metadata are system-owned fields;
-    // never rely on an LLM to generate identifiers or timestamps correctly.
-    extracted.documentType = documentType;
-    extracted.documentId = crypto.randomUUID();
-    extracted.metadata = {
-      ...extracted.metadata,
-      extractedAt: new Date().toISOString(),
-      sourceFileName: session.originalFileName || 'uploaded-document',
-      pageCount: ocrPages.length,
-    };
+  // Identity and provenance are system-owned; an LLM never generates them.
+  extracted.documentType = documentType;
+  extracted.documentId = crypto.randomUUID();
 
-    // Validate against schema
-    const validation = validateDocument(documentType, extracted);
-    if (!validation.valid) {
-      const error = new Error('The uploaded file could not be reliably identified as the selected document type. Please choose the correct type and upload a clear offer letter, payslip, Form 16, or loan agreement.');
-      error.code = 'INCOMPLETE_EXTRACTION';
-      throw error;
-    }
+  const confidence = calculateConfidence(extracted, schema, maskedText);
+  extracted.metadata = {
+    ...(extracted.metadata || {}),
+    extractedAt: new Date().toISOString(),
+    extractionConfidence: confidence,
+    sourceFileName: session.originalFileName || 'uploaded-document',
+    pageCount: ocrPages.length || 1,
+  };
 
-    // Add metadata
-    extracted.metadata = {
-      ...extracted.metadata,
-      extractionConfidence: calculateConfidence(extracted, maskedText),
-      sourceFileName: session.originalFileName || 'unknown',
-      pageCount: ocrPages.length,
-    };
-
-    // Detect traps on extracted data (using original text for accuracy)
-    const trapFlags = await trapDetector.detectTraps(
-      session.originalText,
-      ocrWords,
-      extracted
+  const validation = validateDocument(documentType, extracted);
+  if (!validation.valid) {
+    const missing = (validation.errors || [])
+      .map((e) => `${e.instancePath || '/'} ${e.message}`)
+      .slice(0, 8);
+    const error = new Error(
+      `The document could not be read as a complete ${DOCUMENT_TYPE_LABELS[documentType] || documentType}. ` +
+      `Missing or invalid: ${missing.join('; ')}`
     );
-
-    // Store trap flags
-    const trapReport = {
-      documentId: extracted.documentId,
-      documentType,
-      flags: trapFlags,
-      assessedAt: new Date().toISOString(),
-    };
-    const trapValidation = validateDocument('trap_flags', trapReport);
-    if (trapValidation.valid) {
-      await reportStore.saveReport(userId, trapReport, `${extracted.documentId}_traps`);
-    }
-
-    // Clear session after successful extraction
-    clearSession(sessionToken);
-
-    return {
-      extractedData: extracted,
-      trapFlags,
-      confidence: extracted.metadata.extractionConfidence,
-    };
-  } catch (error) {
-    // Don't clear session on error - user may retry
+    error.code = 'INCOMPLETE_EXTRACTION';
+    error.statusCode = 422;
+    error.details = missing;
     throw error;
   }
+
+  // Numbers that could not be matched verbatim in the source text are reported so
+  // the reviewer knows exactly which figures to double-check.
+  const unverifiedFields = findUnverifiedNumbers(extracted, maskedText);
+
+  // Derived figures come from deterministic code (P2's salary & tax engine),
+  // never from the language model.
+  const computed = await computeDerivedFigures(extracted, documentType);
+
+  // Employment-clause rules apply to offer letters only. Other accepted types get
+  // no speculative "trap" findings. Detection runs on the REDACTED text so quotes
+  // shown in the UI can never contain PII.
+  const trapFlags = documentType === 'offer_letter'
+    ? await trapDetector.detectTraps(maskedText, ocrWords, extracted)
+    : [];
+
+  const trapReport = {
+    documentId: extracted.documentId,
+    documentType,
+    flags: trapFlags,
+    assessedAt: new Date().toISOString(),
+  };
+  const trapValidation = validateDocument('trap_flags', trapReport);
+  if (trapValidation.valid) {
+    await reportStore.saveReport(userId, trapReport, `${extracted.documentId}_traps`);
+  }
+
+  clearSession(sessionToken);
+
+  return {
+    extractedData: extracted,
+    trapFlags,
+    confidence,
+    unverifiedFields,
+    computed,
+  };
 }
 
 /**
- * Build extraction prompt for LLM
+ * Build extraction prompt for the LLM.
+ * The wording is deliberately strict: the model transcribes, it does not estimate.
  * @param {string} documentType
  * @param {string} maskedText
  * @returns {string}
  */
 function buildExtractionPrompt(documentType, maskedText) {
-  const prompts = {
-    offer_letter: `Extract structured data from this Indian job offer letter. Pay attention to:
-- Company details (name, CIN, GSTIN, PAN, address)
+  const fieldGuides = {
+    offer_letter: `- Company details (name, CIN, GSTIN, PAN, address)
 - Candidate details (name, email, phone, address)
-- Complete CTC breakdown: basic, HRA, special allowance, PF (employer/employee), gratuity, professional tax
-- Variable components: performance bonus amount, criteria, frequency
-- ESOP details: total options, strike price, total shares, cliff, vesting schedule, current valuation
-- Joining bonus and clawback period
+- CTC breakdown as written: basic, HRA, special allowance, PF (employer/employee), gratuity, professional tax
+- Variable components: amount, stated criteria, frequency
+- ESOP: total options, strike price, total company shares, cliff, vesting schedule, current valuation
+- Joining bonus and its clawback period
 - Contractual terms: notice period (days), probation (months), bond duration (months), bond penalty, non-compete radius/duration, moonlighting policy, IP assignment scope
-- Work location: city, state, pincode, work mode (office/hybrid/remote)
-- All monetary values in INR (₹)`,
-
-    payslip: `Extract structured data from this Indian monthly payslip. Pay attention to:
-- Pay period: month, year, start/end dates, days worked/paid
+- Work location: city, state, pincode, work mode`,
+    payslip: `- Pay period: month, year, start/end dates, days worked/paid
 - Company details (name, CIN, GSTIN, PAN, address)
-- Employee details (name, employee ID, PAN, Aadhaar, UAN, designation, department, DOJ, bank account, IFSC)
-- Earnings: basic, HRA, special allowance, conveyance, medical, LTA, performance bonus, other allowances, gross earnings
-- Deductions: PF (employee/employer), ESI (employee/employer), professional tax, TDS, advance, loan recovery, other deductions, total deductions
+- Employee details (name, employee ID, PAN, Aadhaar, UAN, designation, department, date of joining, bank account, IFSC)
+- Earnings as written: basic, HRA, special allowance, conveyance, medical, LTA, bonus, other allowances, gross earnings
+- Deductions as written: PF (employee/employer), ESI, professional tax, TDS, advance, loan recovery, other, total
 - Net pay
-- YTD: gross, TDS, PF
-- All monetary values in INR (₹)`,
-
-    form16: `Extract structured data from this Form 16 (TDS Certificate). Pay attention to:
-- Financial year and assessment year
+- Year-to-date gross, TDS, PF`,
+    form16: `- Financial year and assessment year
 - Employer: name, TAN, PAN, address
 - Employee: name, PAN, address
-- Part A: total tax deducted/deposited, challan details (BSR code, date, serial, amount)
+- Part A: total tax deducted and deposited, challan details
 - Part B: gross salary, exempt allowances, perquisites, profits in lieu, total income from salary
-- Chapter VI-A deductions: 80C, 80CCD(1B), 80D, 80E, 80G, 80TTA, others, total
+- Chapter VI-A deductions: 80C, 80CCD(1B), 80D, 80E, 80G, 80TTA, other, total
 - Taxable income, tax on income, 87A rebate, cess, total tax liability
-- Tax paid, refund due, tax payable
-- All monetary values in INR (₹)`,
-
-    loan_agreement: `Extract structured data from this loan agreement/sanction letter. Pay attention to:
-- Loan type: home/personal/education/vehicle/gold/business
-- Sanction date
-- Lender: name, type (bank/NBFC/HFC/fintech), license number
+- Tax paid, refund due, tax payable`,
+    loan_agreement: `- Loan type, sanction date
+- Lender: name, type, licence number
 - Borrower: name, PAN, income
-- Loan terms: principal, interest rate (%), interest type (fixed/floating/hybrid), tenure (months), EMI, processing fee, prepayment charges (%), moratorium months
-- All monetary values in INR (₹)`,
+- Loan terms: principal, interest rate, interest type, tenure (months), EMI, processing fee, prepayment charges, moratorium`,
   };
 
-  return `${prompts[documentType] || prompts.offer_letter}\n\nDocument text:\n${maskedText}`;
+  return `You are transcribing a real ${DOCUMENT_TYPE_LABELS[documentType] || documentType} into structured JSON.
+
+ABSOLUTE RULES - a wrong number is worse than a missing number:
+1. Only output a value when that exact value is written in the document text below. Copy it as-is.
+2. If a field is not stated in the document, OMIT the key entirely. Never estimate, never infer, never average, never carry a value over from a similar field, and never fill in a "typical" figure.
+3. Never compute or derive a figure. Do not calculate monthly from annual, annual from monthly, totals from components, or percentages from amounts. If the document does not print it, it is not in your output.
+4. Copy amounts in rupees as plain numbers without separators or symbols (₹8,80,000 becomes 880000). Keep lakh/crore wording converted only when the document uses it, e.g. "₹12 lakh" becomes 1200000.
+5. Dates must be ISO format (YYYY-MM-DD). If the document gives only a month and year, omit the date field rather than guessing the day.
+6. Enum fields must use exactly one of the allowed values.
+7. Do not add extra keys. Output only keys that appear in the schema.
+
+Look for:
+${fieldGuides[documentType] || fieldGuides.offer_letter}
+
+Document text (PII has already been redacted; [MASKED_*] tokens are placeholders, not data):
+"""
+${maskedText}
+"""`;
 }
 
 /**
- * Calculate extraction confidence based on field completeness
+ * Remove keys that are not part of the schema, and treat empty values as absent.
+ * @param {*} value
+ * @param {object} schema
+ * @returns {*}
+ */
+function pruneToSchema(value, schema) {
+  if (Array.isArray(value)) {
+    const itemSchema = schema?.items;
+    return value
+      .map((item) => (itemSchema ? pruneToSchema(item, itemSchema) : item))
+      .filter((item) => item !== null && item !== undefined && item !== '');
+  }
+
+  if (value && typeof value === 'object') {
+    if (!schema?.properties) return value;
+    const out = {};
+    for (const [key, propSchema] of Object.entries(schema.properties)) {
+      const child = value[key];
+      if (child === undefined || child === null || child === '') continue;
+      out[key] = pruneToSchema(child, propSchema);
+    }
+    return out;
+  }
+
+  return value;
+}
+
+/**
+ * Calculate extraction confidence from field completeness.
+ * This measures how much of the schema the document actually filled in - it is not
+ * a guarantee of correctness, which is why unverified numbers are reported separately.
  * @param {object} extracted
+ * @param {object} schema
  * @param {string} maskedText
  * @returns {number} Confidence 0-1
  */
-function calculateConfidence(extracted, maskedText) {
-  const schema = getSchema(extracted.documentType);
+function calculateConfidence(extracted, schema, maskedText) {
   if (!schema || !schema.properties) return 0.5;
 
   let totalFields = 0;
@@ -304,8 +492,102 @@ function calculateConfidence(extracted, maskedText) {
   countFields(extracted, schema.properties);
 
   const fieldConfidence = totalFields > 0 ? filledFields / totalFields : 0.5;
-  const textLengthFactor = Math.min(maskedText.length / 5000, 1); // More text = more confidence
-  return Math.round((fieldConfidence * 0.7 + textLengthFactor * 0.3) * 100) / 100;
+  const textLengthFactor = Math.min(maskedText.length / 5000, 1);
+  return Math.round((fieldConfidence * 0.8 + textLengthFactor * 0.2) * 100) / 100;
+}
+
+/**
+ * Find monetary values that do not appear verbatim in the source text.
+ * Amounts written in words ("twelve lakh") are reported as unverified, which is
+ * the safe direction: it asks the reviewer to check rather than to trust.
+ * @param {object} extracted
+ * @param {string} sourceText
+ * @returns {Array<string>} Dotted paths of unverified fields
+ */
+function findUnverifiedNumbers(extracted, sourceText) {
+  const digits = String(sourceText || '').replace(/[^\d]/g, '');
+  const unverified = [];
+
+  function checkValue(value, path) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return;
+    const rounded = Math.round(Math.abs(value));
+    if (rounded < 1000) return; // months, days, counts and percentages are not money
+    if (!digits.includes(String(rounded))) unverified.push(path);
+  }
+
+  function walk(node, prefix) {
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${prefix}[${index}]`));
+      return;
+    }
+    if (node && typeof node === 'object') {
+      for (const [key, child] of Object.entries(node)) {
+        walk(child, prefix ? `${prefix}.${key}` : key);
+      }
+      return;
+    }
+    checkValue(node, prefix);
+  }
+
+  walk(extracted, '');
+  return unverified;
+}
+
+/**
+ * Deterministic derived figures. Uses P2's salary & tax engine through its public
+ * module interface only (module/salarytax/index.js).
+ * @param {object} extracted
+ * @param {string} documentType
+ * @returns {object|null}
+ */
+async function computeDerivedFigures(extracted, documentType) {
+  if (documentType !== 'offer_letter') return null;
+
+  const fixed = extracted.compensation?.fixedComponent || {};
+  const basic = fixed.baseSalary;
+
+  // Without a stated basic salary there is nothing honest to compute from.
+  if (!Number.isFinite(basic) || basic <= 0) return null;
+
+  let salarytax;
+  try {
+    salarytax = require('../salarytax');
+  } catch (error) {
+    console.warn('[DOCUMENTS] Salary & tax engine unavailable:', error.message);
+    return null;
+  }
+
+  const inputs = {
+    ctcAnnual: extracted.compensation?.ctcAnnual ?? 0,
+    basicAnnual: basic,
+    hraAnnual: fixed.hra ?? 0,
+    specialAllowanceAnnual: fixed.specialAllowance ?? 0,
+    pfEmployeeAnnual: fixed.pfEmployee ?? 0,
+    pfEmployerAnnual: fixed.pfEmployer ?? 0,
+    gratuityAnnual: fixed.gratuity ?? 0,
+    bonusAnnual: extracted.compensation?.variableComponent?.performanceBonus ?? 0,
+    professionalTaxAnnual: fixed.professionalTax ?? 0,
+    regime: 'new',
+  };
+
+  try {
+    const result = await salarytax.service.calculateInHand(inputs, extracted.documentId);
+    return {
+      inHand: {
+        netMonthly: result.netMonthly,
+        grossMonthly: result.grossMonthly,
+        annualTax: result.annualTax,
+        regimeUsed: result.regimeUsed,
+        financialYear: result.financialYear,
+        inputs,
+        disclaimer: result.disclaimer,
+        sourceNote: result.sourceNote,
+      },
+    };
+  } catch (error) {
+    console.warn('[DOCUMENTS] Take-home calculation failed:', error.message);
+    return null;
+  }
 }
 
 /**
@@ -340,7 +622,6 @@ function getSession(sessionToken, userId) {
   const session = sessions.get(sessionToken);
   if (!session) return null;
 
-  // Verify ownership
   if (session.userId !== userId) {
     throw new Error('Unauthorized: Session belongs to different user');
   }
@@ -400,4 +681,10 @@ module.exports = {
   listReports,
   validateFile,
   generateSessionToken,
+  classifyDocument,
+  heuristicClassify,
+  pruneToSchema,
+  findUnverifiedNumbers,
+  SUPPORTED_DOCUMENT_TYPES,
+  DOCUMENT_TYPE_LABELS,
 };

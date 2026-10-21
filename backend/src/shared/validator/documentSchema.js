@@ -10,6 +10,12 @@ const addFormats = require('ajv-formats');
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);
 
+// Extraction runs on PII-redacted text, so identifiers such as PAN, Aadhaar, TAN,
+// CIN, GSTIN and IFSC arrive as mask tokens (for example [MASKED_PAN_1]) rather than
+// as real values. Patterns below therefore accept either the genuine format or a token.
+const MASK_TOKEN = '\\[MASKED_[A-Z0-9_]+\\]';
+const withMaskToken = (pattern) => `^(?:${pattern}|${MASK_TOKEN})$`;
+
 // ============================================
 // COMMON DEFINITIONS
 // ============================================
@@ -30,7 +36,9 @@ const compensationBreakdown = {
     clawbackPeriodMonths: { type: 'integer', minimum: 0, description: 'Clawback period in months for bonuses' },
   },
   additionalProperties: false,
-  required: ['baseSalary', 'hra', 'specialAllowance', 'pfEmployer', 'pfEmployee'],
+  // Only the base salary is required: every other line item is optional so a document
+  // that does not print it is reported as absent instead of being invented.
+  required: ['baseSalary'],
 };
 
 const esopGrant = {
@@ -56,7 +64,7 @@ const esopGrant = {
     currentValuation: { type: 'number', minimum: 0, description: 'Current fair market value per share (₹)' },
   },
   additionalProperties: false,
-  required: ['totalOptions', 'strikePrice', 'totalCompanyShares'],
+  required: ['totalOptions', 'strikePrice'],
 };
 
 const contractualTerms = {
@@ -78,10 +86,10 @@ const companyInfo = {
   type: 'object',
   properties: {
     name: { type: 'string', minLength: 1 },
-    cin: { type: 'string', pattern: '^[LU]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}$', description: 'Corporate Identity Number' },
-    gstin: { type: 'string', pattern: '^\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}[A-Z\\d]{1}[Z]{1}[A-Z\\d]{1}$', description: 'GST Identification Number' },
+    cin: { type: 'string', pattern: withMaskToken('[LU]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}'), description: 'Corporate Identity Number' },
+    gstin: { type: 'string', pattern: withMaskToken('\\d{2}[A-Z]{5}\\d{4}[A-Z]{1}[A-Z\\d]{1}[Z]{1}[A-Z\\d]{1}'), description: 'GST Identification Number' },
     address: { type: 'string' },
-    pan: { type: 'string', pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$', description: 'Company PAN' },
+    pan: { type: 'string', pattern: withMaskToken('[A-Z]{5}[0-9]{4}[A-Z]'), description: 'Company PAN' },
   },
   additionalProperties: false,
   required: ['name'],
@@ -92,17 +100,17 @@ const employeeInfo = {
   properties: {
     name: { type: 'string', minLength: 1 },
     employeeId: { type: 'string' },
-    pan: { type: 'string', pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$', description: 'Employee PAN' },
-    aadhaar: { type: 'string', pattern: '^\\d{4}\\s?\\d{4}\\s?\\d{4}$', description: 'Employee Aadhaar (masked)' },
-    uan: { type: 'string', pattern: '^\\d{12}$', description: 'Universal Account Number' },
+    pan: { type: 'string', pattern: withMaskToken('[A-Z]{5}[0-9]{4}[A-Z]'), description: 'Employee PAN' },
+    aadhaar: { type: 'string', pattern: withMaskToken('\\d{4}\\s?\\d{4}\\s?\\d{4}'), description: 'Employee Aadhaar (masked)' },
+    uan: { type: 'string', pattern: withMaskToken('\\d{12}'), description: 'Universal Account Number' },
     designation: { type: 'string' },
     department: { type: 'string' },
     dateOfJoining: { type: 'string', format: 'date', description: 'YYYY-MM-DD' },
     bankAccount: { type: 'string', description: 'Bank account number (masked)' },
-    ifsc: { type: 'string', pattern: '^[A-Z]{4}0[A-Z0-9]{6}$', description: 'IFSC code' },
+    ifsc: { type: 'string', pattern: withMaskToken('[A-Z]{4}0[A-Z0-9]{6}'), description: 'IFSC code' },
   },
   additionalProperties: false,
-  required: ['name', 'employeeId'],
+  required: ['name'],
 };
 
 // ============================================
@@ -125,10 +133,10 @@ const offerLetterSchema = {
       properties: {
         name: { type: 'string', minLength: 1 },
         email: { type: 'string', format: 'email' },
-        phone: { type: 'string', pattern: '^(?:(?:\\+|0{0,2})91[\\s-]*)?[6-9]\\d{9}$' },
+        phone: { type: 'string', pattern: withMaskToken('(?:(?:\\+|0{0,2})91[\\s-]*)?[6-9]\\d{9}') },
         address: { type: 'string' },
       },
-      required: ['name', 'email'],
+      required: ['name'],
       additionalProperties: false,
     },
     compensation: {
@@ -203,7 +211,7 @@ const payslipSchema = {
         daysWorked: { type: 'number', minimum: 0, maximum: 31 },
         daysPaid: { type: 'number', minimum: 0, maximum: 31 },
       },
-      required: ['month', 'year', 'daysWorked', 'daysPaid'],
+      required: ['month', 'year'],
       additionalProperties: false,
     },
     company: companyInfo,
@@ -222,7 +230,7 @@ const payslipSchema = {
         grossEarnings: { type: 'number', minimum: 0 },
       },
       additionalProperties: false,
-      required: ['basic', 'hra', 'grossEarnings'],
+      required: ['grossEarnings'],
     },
     deductions: {
       type: 'object',
@@ -239,7 +247,7 @@ const payslipSchema = {
         totalDeductions: { type: 'number', minimum: 0 },
       },
       additionalProperties: false,
-      required: ['pfEmployee', 'professionalTax', 'totalDeductions'],
+      required: ['totalDeductions'],
     },
     netPay: { type: 'number', minimum: 0, description: 'Net take-home pay' },
     ytd: {
@@ -285,21 +293,21 @@ const form16Schema = {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        tan: { type: 'string', pattern: '^[A-Z]{4}\\d{5}[A-Z]$', description: 'Tax Deduction Account Number' },
-        pan: { type: 'string', pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$' },
+        tan: { type: 'string', pattern: withMaskToken('[A-Z]{4}\\d{5}[A-Z]'), description: 'Tax Deduction Account Number' },
+        pan: { type: 'string', pattern: withMaskToken('[A-Z]{5}[0-9]{4}[A-Z]') },
         address: { type: 'string' },
       },
-      required: ['name', 'tan', 'pan'],
+      required: ['name'],
       additionalProperties: false,
     },
     employee: {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        pan: { type: 'string', pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$' },
+        pan: { type: 'string', pattern: withMaskToken('[A-Z]{5}[0-9]{4}[A-Z]') },
         address: { type: 'string' },
       },
-      required: ['name', 'pan'],
+      required: ['name'],
       additionalProperties: false,
     },
     partA: {
@@ -397,17 +405,17 @@ const loanAgreementSchema = {
         type: { type: 'string', enum: ['bank', 'nbfc', 'hfc', 'fintech'] },
         licenseNumber: { type: 'string' },
       },
-      required: ['name', 'type'],
+      required: ['name'],
       additionalProperties: false,
     },
     borrower: {
       type: 'object',
       properties: {
         name: { type: 'string' },
-        pan: { type: 'string', pattern: '^[A-Z]{5}[0-9]{4}[A-Z]$' },
+        pan: { type: 'string', pattern: withMaskToken('[A-Z]{5}[0-9]{4}[A-Z]') },
         income: { type: 'number', minimum: 0 },
       },
-      required: ['name', 'pan'],
+      required: ['name'],
       additionalProperties: false,
     },
     loanTerms: {
@@ -422,7 +430,7 @@ const loanAgreementSchema = {
         prepaymentCharges: { type: 'number', minimum: 0, description: 'Prepayment penalty %' },
         moratoriumMonths: { type: 'integer', minimum: 0 },
       },
-      required: ['principalAmount', 'interestRate', 'tenureMonths', 'emi'],
+      required: ['principalAmount'],
       additionalProperties: false,
     },
     metadata: {

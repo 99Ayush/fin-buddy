@@ -29,6 +29,16 @@ export async function getMarketMovers() {
   return api.get('/home/market-movers');
 }
 
+/** POST /api/home/stock-quotes — live quotes for given symbols */
+export async function getStockQuotes(symbols) {
+  return api.post('/home/stock-quotes', { symbols });
+}
+
+/** GET /api/home/search-stocks?q= — search stock symbols for autocomplete */
+export async function searchStocks(query) {
+  return api.get(`/home/search-stocks?q=${encodeURIComponent(query)}`);
+}
+
 /** GET /api/moneyplan/goals — goal data shared with the Money Plan module. */
 export async function getSavingsGoals() {
   return api.get('/moneyplan/goals');

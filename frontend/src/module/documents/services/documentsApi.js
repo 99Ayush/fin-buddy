@@ -23,13 +23,11 @@ function authHeaders(isJson = true) {
 /**
  * Upload document for OCR + PII masking
  * @param {File} file - PDF/PNG/JPG file
- * @param {string} documentType - 'offer_letter' | 'payslip' | 'form16' | 'loan_agreement'
- * @returns {Promise<object>} { sessionToken, maskedPreview, piiDetected, quickTraps, ocrMetadata }
+ * @returns {Promise<object>} { sessionToken, classification, maskedPreview, piiDetected, ocrMetadata }
  */
-export async function uploadDocument(file, documentType = 'offer_letter') {
+export async function uploadDocument(file) {
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('documentType', documentType);
 
   const response = await fetch(`${API_BASE}/upload`, {
     method: 'POST',

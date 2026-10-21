@@ -1,7 +1,14 @@
 /**
  * LLM Adapter Layer (llm.js)
- * Standardized client interface with support for Google Gemini, Groq, OpenRouter.
- * Strict JSON mode, cached offline fallback, graceful degradation.
+ * Standardized client interface. Primary provider: xAI Grok (api.x.ai).
+ * Also supports Google Gemini, Groq and OpenRouter as fallbacks.
+ * Strict JSON mode, response caching, graceful degradation.
+ *
+ * HARD RULES (enforced here, not by the prompt):
+ * - A failed call never returns invented values. If the provider cannot be
+ *   reached, the call throws and the caller surfaces a real error.
+ * - Cached responses are only ever replayed for an identical prompt+schema,
+ *   so a cache hit is always a real answer for the same document.
  */
 
 const crypto = require('crypto');
@@ -17,6 +24,17 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // ============================================
 
 const providers = {
+  // xAI Grok — primary provider for document validation and field extraction.
+  // NOTE: distinct from `groq` below, which is Groq (api.groq.com) hosting open-weight models.
+  grok: {
+    name: 'xAI Grok',
+    models: ['grok-4.7', 'grok-4.6', 'grok-4.5', 'grok-4.3'],
+    defaultModel: 'grok-4.7',
+    baseUrl: 'https://api.x.ai/v1',
+    apiKeyEnv: 'GROK_API_KEY',
+    supportsJsonMode: true,
+    rateLimit: { rpm: 60, rpd: 0 }, // Pay-as-you-go
+  },
   gemini: {
     name: 'Google Gemini',
     models: ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.8-flash'],
@@ -46,21 +64,60 @@ const providers = {
   },
 };
 
-// Current provider selection (can be overridden via env)
-let currentProvider = process.env.LLM_PROVIDER || 'gemini';
+// Order used when LLM_PROVIDER is unset or its key is missing.
+const PROVIDER_PREFERENCE = ['grok', 'gemini', 'groq', 'openrouter'];
+
+// Explicit selection via setProvider() (tests / programmatic callers)
+let explicitProvider = null;
 let currentModel = null;
 
 /**
+ * Resolve which provider key is actually usable right now.
+ * An explicit LLM_PROVIDER wins only when its API key is present; otherwise we
+ * fall back to the first configured provider so the app keeps working.
+ * @returns {string} Provider key
+ */
+function resolveProviderKey() {
+  if (explicitProvider) return explicitProvider;
+
+  const requested = process.env.LLM_PROVIDER && providers[process.env.LLM_PROVIDER]
+    ? process.env.LLM_PROVIDER
+    : null;
+
+  if (requested && process.env[providers[requested].apiKeyEnv]) return requested;
+
+  for (const key of PROVIDER_PREFERENCE) {
+    if (process.env[providers[key].apiKeyEnv]) return key;
+  }
+
+  // Nothing configured: honour the request (or the top preference) so the caller
+  // receives a precise "<KEY> not set" error rather than a silent wrong answer.
+  return requested || PROVIDER_PREFERENCE[0];
+}
+
+/**
+ * Resolve the model id for a provider.
+ * Override with e.g. GROK_MODEL, GEMINI_MODEL, GROQ_MODEL, OPENROUTER_MODEL.
+ * @param {string} providerKey
+ * @returns {string}
+ */
+function resolveModel(providerKey) {
+  if (currentModel) return currentModel;
+  const envModel = process.env[`${providerKey.toUpperCase()}_MODEL`];
+  return envModel || providers[providerKey].defaultModel;
+}
+
+/**
  * Set the active LLM provider
- * @param {string} provider - Provider key (gemini, groq, openrouter)
+ * @param {string} provider - Provider key (grok, gemini, groq, openrouter)
  * @param {string} [model] - Specific model to use
  */
 function setProvider(provider, model = null) {
   if (!providers[provider]) {
     throw new Error(`Unknown provider: ${provider}. Available: ${Object.keys(providers).join(', ')}`);
   }
-  currentProvider = provider;
-  currentModel = model || providers[provider].defaultModel;
+  explicitProvider = provider;
+  currentModel = model || null;
 }
 
 /**
@@ -68,7 +125,15 @@ function setProvider(provider, model = null) {
  * @returns {object} Provider configuration
  */
 function getProviderConfig() {
-  return providers[currentProvider];
+  return providers[resolveProviderKey()];
+}
+
+/**
+ * Is an LLM provider actually usable (API key present)?
+ * @returns {boolean}
+ */
+function isLlmConfigured() {
+  return Boolean(process.env[getProviderConfig().apiKeyEnv]);
 }
 
 /**
@@ -116,6 +181,24 @@ function setCachedResponse(cacheKey, response, model) {
 }
 
 /**
+ * Build a human-readable error for a failed HTTP call.
+ * Never includes the API key.
+ */
+function describeHttpError(provider, status, body) {
+  const detail = String(body || '').slice(0, 300);
+  if (status === 401 || status === 403) {
+    return `${provider.apiKeyEnv} was rejected by ${provider.name} (HTTP ${status}). Check the key in backend/.env.`;
+  }
+  if (status === 404) {
+    return `${provider.name} does not expose this model (HTTP 404). Set ${provider.apiKeyEnv.replace('_API_KEY', '_MODEL')} in backend/.env. ${detail}`;
+  }
+  if (status === 429) {
+    return `${provider.name} rate limit reached (HTTP 429). Retry in a moment. ${detail}`;
+  }
+  return `${provider.name} API error ${status}: ${detail}`;
+}
+
+/**
  * Call LLM with structured JSON output (primary method)
  * @param {string} prompt - System + user prompt
  * @param {object} schema - JSON schema for response validation
@@ -123,11 +206,12 @@ function setCachedResponse(cacheKey, response, model) {
  * @returns {Promise<object>} Parsed JSON response
  */
 async function callLlmStructured(prompt, schema, options = {}) {
-  const provider = getProviderConfig();
-  const model = currentModel || provider.defaultModel;
-  const cacheKey = generateCacheKey(prompt, { schema, ...options });
+  const providerKey = resolveProviderKey();
+  const provider = providers[providerKey];
+  const model = resolveModel(providerKey);
+  const cacheKey = generateCacheKey(prompt, { schema, provider: providerKey, model, ...options });
 
-  // Check cache first
+  // Replay only an identical previous call (same prompt + schema + provider + model).
   const cached = getCachedResponse(cacheKey);
   if (cached) {
     console.log('[LLM] Cache hit');
@@ -139,45 +223,26 @@ async function callLlmStructured(prompt, schema, options = {}) {
     throw new Error(`${provider.apiKeyEnv} not set. Cannot call ${provider.name}.`);
   }
 
-  const systemPrompt = `You are a precise information extraction engine. Output ONLY valid JSON matching the provided schema. No markdown, no explanations, no extra text.`;
+  const systemPrompt = `You are a precise information extraction engine. Output ONLY valid JSON matching the provided schema. No markdown, no explanations, no extra text. Never invent a value that is not literally present in the input.`;
 
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: `${prompt}\n\nOutput schema:\n${JSON.stringify(schema, null, 2)}` },
   ];
 
-  let response;
+  const response = providerKey === 'gemini'
+    ? await callGemini(messages, schema, model, apiKey, options)
+    : await callOpenAICompatible(messages, schema, model, apiKey, providerKey, provider, options);
 
-  try {
-    if (currentProvider === 'gemini') {
-      response = await callGemini(messages, schema, model, apiKey);
-    } else {
-      response = await callOpenAICompatible(messages, schema, model, apiKey, provider.baseUrl);
-    }
-
-    // Validate against schema
-    const validated = validateJsonResponse(response, schema);
-    setCachedResponse(cacheKey, validated, model);
-    return validated;
-
-  } catch (error) {
-    console.error('[LLM] Call failed:', error.message);
-
-    // Return cached fallback if available
-    const fallback = getFallbackResponse(schema);
-    if (fallback) {
-      console.log('[LLM] Using cached fallback response');
-      return fallback;
-    }
-
-    throw error;
-  }
+  const validated = validateJsonResponse(response, schema);
+  setCachedResponse(cacheKey, validated, model);
+  return validated;
 }
 
 /**
  * Call Gemini API
  */
-async function callGemini(messages, schema, model, apiKey) {
+async function callGemini(messages, schema, model, apiKey, options = {}) {
   const url = `${providers.gemini.baseUrl}/models/${model}:generateContent?key=${apiKey}`;
 
   const payload = {
@@ -188,8 +253,8 @@ async function callGemini(messages, schema, model, apiKey) {
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: schema,
-      temperature: 0.1,
-      maxOutputTokens: 8192,
+      temperature: options.temperature ?? 0.1,
+      maxOutputTokens: options.maxTokens ?? 8192,
     },
   };
 
@@ -200,29 +265,28 @@ async function callGemini(messages, schema, model, apiKey) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini API error ${res.status}: ${err}`);
+    throw new Error(describeHttpError(providers.gemini, res.status, await res.text()));
   }
 
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty response from Gemini');
 
-  return JSON.parse(text);
+  return parseJsonOrThrow(text, providers.gemini);
 }
 
 /**
- * Call OpenAI-compatible API (Groq, OpenRouter)
+ * Call an OpenAI-compatible API (xAI Grok, Groq, OpenRouter)
  */
-async function callOpenAICompatible(messages, schema, model, apiKey, baseUrl) {
-  const url = `${baseUrl}/chat/completions`;
+async function callOpenAICompatible(messages, schema, model, apiKey, providerKey, provider, options = {}) {
+  const url = `${provider.baseUrl}/chat/completions`;
 
   const payload = {
     model,
     messages,
     response_format: { type: 'json_object' },
-    temperature: 0.1,
-    max_tokens: 8192,
+    temperature: options.temperature ?? 0.1,
+    max_tokens: options.maxTokens ?? 8192,
   };
 
   const res = await fetch(url, {
@@ -230,7 +294,7 @@ async function callOpenAICompatible(messages, schema, model, apiKey, baseUrl) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      ...(currentProvider === 'openrouter' && {
+      ...(providerKey === 'openrouter' && {
         'HTTP-Referer': 'https://fin-buddy.dev',
         'X-Title': 'Fin-Buddy',
       }),
@@ -239,15 +303,33 @@ async function callOpenAICompatible(messages, schema, model, apiKey, baseUrl) {
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`${currentProvider} API error ${res.status}: ${err}`);
+    throw new Error(describeHttpError(provider, res.status, await res.text()));
   }
 
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error('Empty response from LLM');
+  if (!text) throw new Error(`Empty response from ${provider.name}`);
 
-  return JSON.parse(text);
+  return parseJsonOrThrow(text, provider);
+}
+
+/**
+ * Parse a JSON body, tolerating accidental markdown fences.
+ */
+function parseJsonOrThrow(text, provider) {
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    const fenced = String(text).match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fenced) {
+      try {
+        return JSON.parse(fenced[1]);
+      } catch (inner) {
+        // fall through to the descriptive error below
+      }
+    }
+    throw new Error(`${provider.name} returned a non-JSON response`);
+  }
 }
 
 /**
@@ -257,6 +339,10 @@ async function callOpenAICompatible(messages, schema, model, apiKey, baseUrl) {
  * @returns {object} Validated response
  */
 function validateJsonResponse(response, schema) {
+  if (!response || typeof response !== 'object') {
+    throw new Error('LLM returned an empty structured response');
+  }
+
   // Basic required field check
   if (schema.required) {
     for (const field of schema.required) {
@@ -269,41 +355,15 @@ function validateJsonResponse(response, schema) {
 }
 
 /**
- * Generate fallback response from schema defaults
- * @param {object} schema - JSON Schema
- * @returns {object|null} Fallback object with defaults
- */
-function getFallbackResponse(schema) {
-  if (!schema.properties) return null;
-
-  const fallback = {};
-  for (const [key, prop] of Object.entries(schema.properties)) {
-    if (prop.default !== undefined) {
-      fallback[key] = prop.default;
-    } else if (prop.type === 'string') {
-      fallback[key] = prop.enum ? prop.enum[0] : '';
-    } else if (prop.type === 'number' || prop.type === 'integer') {
-      fallback[key] = prop.minimum ?? 0;
-    } else if (prop.type === 'boolean') {
-      fallback[key] = false;
-    } else if (prop.type === 'array') {
-      fallback[key] = [];
-    } else if (prop.type === 'object') {
-      fallback[key] = getFallbackResponse(prop) || {};
-    }
-  }
-  return fallback;
-}
-
-/**
  * Simple text generation (non-structured)
  * @param {string} prompt
  * @param {object} options
  * @returns {Promise<string>}
  */
 async function callLlm(prompt, options = {}) {
-  const provider = getProviderConfig();
-  const model = currentModel || provider.defaultModel;
+  const providerKey = resolveProviderKey();
+  const provider = providers[providerKey];
+  const model = resolveModel(providerKey);
   const apiKey = process.env[provider.apiKeyEnv];
 
   if (!apiKey) {
@@ -315,39 +375,42 @@ async function callLlm(prompt, options = {}) {
     { role: 'user', content: prompt },
   ];
 
-  if (currentProvider === 'gemini') {
-    const url = `${providers.gemini.baseUrl}/models/${model}:generateContent?key=${apiKey}`;
+  if (providerKey === 'gemini') {
+    const url = `${provider.baseUrl}/models/${model}:generateContent?key=${apiKey}`;
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })),
         generationConfig: { temperature: options.temperature ?? 0.3, maxOutputTokens: options.maxTokens ?? 2048 },
       }),
     });
     const data = await res.json();
     if (!res.ok) {
-      throw new Error(`Gemini API error ${res.status}: ${JSON.stringify(data.error || data)}`);
+      throw new Error(describeHttpError(provider, res.status, JSON.stringify(data.error || data)));
     }
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  } else {
-    const url = `${provider.baseUrl}/chat/completions`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options.temperature ?? 0.3,
-        max_tokens: options.maxTokens ?? 2048,
-      }),
-    });
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content || '';
   }
+
+  const url = `${provider.baseUrl}/chat/completions`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 2048,
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(describeHttpError(provider, res.status, JSON.stringify(data.error || data)));
+  }
+  return data.choices?.[0]?.message?.content || '';
 }
 
 /**
@@ -374,6 +437,9 @@ module.exports = {
   callLlmStructured,
   setProvider,
   getProviderConfig,
+  getActiveProviderKey: resolveProviderKey,
+  getActiveModel: () => resolveModel(resolveProviderKey()),
+  isLlmConfigured,
   getCacheStats,
   clearCache,
   providers,

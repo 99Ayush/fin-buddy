@@ -56,6 +56,7 @@ export const AppLayout = ({ children }) => {
 
   // All currently registered modules are available in the app.
   const navLinks = [
+    { to: '/home',      label: 'Home',                  tier: 'p3-live' },
     { to: '/documents', label: 'Documents',            tier: 'p1' },
     { to: '/salarytax', label: 'Salary & Tax',          tier: 'live' },
     { to: '/moneyplan', label: 'Money Plan',            tier: 'live' },

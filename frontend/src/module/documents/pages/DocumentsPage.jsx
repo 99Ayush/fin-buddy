@@ -95,10 +95,10 @@ const DocumentsPage = () => {
     setIsUploading(true);
 
     try {
-      const res = await documentsApi.uploadDocument(fileToUpload, documentType);
+      const res = await documentsApi.uploadDocument(fileToUpload);
       setSessionToken(res.sessionToken);
       setUploadResult(res);
-      showToast(lang === 'hi' ? 'दस्तावेज़ सफलतापूर्वक अपलोड हो गया!' : 'Document scanned and PII redacted locally!', 'success');
+      showToast(lang === 'hi' ? 'दस्तावेज़ सफलतापूर्वक अपलोड हो गया!' : `Recognised as ${res.classification?.label || res.documentType}. Review the redacted OCR before extraction.`, 'success');
       setActiveTab(1); // Proceed to Mask Preview
     } catch (err) {
       showToast(err.message || 'Upload failed', 'error');
@@ -405,13 +405,13 @@ const DocumentsPage = () => {
             type="button"
             className={`tab-btn ${activeTab === 3 ? 'active' : ''}`}
             onClick={() => setActiveTab(3)}
-            disabled={trapFlags.length === 0}
+            disabled={!extractedData}
           >
             <span className="tab-icon">⚠️</span>
             <span>4. {t('tabClauses')}</span>
-            {trapFlags.length > 0 && (
+            {extractedData && (
               <span className="badge badge-critical" style={{ fontSize: '10px' }}>
-                {trapFlags.length} Traps
+                {trapFlags.length} findings
               </span>
             )}
           </button>
@@ -427,20 +427,7 @@ const DocumentsPage = () => {
                   PDF, PNG, JPG &bull; Max 5MB &bull; 100% Client-Side Privacy Shield
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label className="form-label" style={{ margin: 0 }}>Document Type:</label>
-                <select
-                  className="form-control"
-                  style={{ width: 'auto', padding: '6px 12px', fontSize: '13px' }}
-                  value={documentType}
-                  onChange={(e) => setDocumentType(e.target.value)}
-                >
-                  <option value="offer_letter">Offer Letter</option>
-                  <option value="payslip">Monthly Payslip</option>
-                  <option value="form16">Form 16</option>
-                  <option value="loan_agreement">Loan Agreement</option>
-                </select>
-              </div>
+              <span className="badge badge-info">Type is recognised automatically</span>
             </div>
 
             <div className="panel-body">
@@ -484,7 +471,7 @@ const DocumentsPage = () => {
                   {isUploading ? 'Scanning & Redacting Document...' : 'Drag & drop your document here, or click to browse'}
                 </h4>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '440px', margin: '0 auto 20px' }}>
-                  Supports Indian Tech Offer Letters, Form 16, and CTC breakdowns. Sensitive fields like PAN, phone numbers, and addresses are redacted locally before analysis.
+                  Upload a PDF, PNG, or JPG. We recognise offer letters, payslips, Form 16, loan agreements, and loan sanction letters after local OCR and PII redaction. Unsupported documents stop before extraction.
                 </p>
 
                 {isUploading ? (
@@ -551,6 +538,12 @@ const DocumentsPage = () => {
             </div>
 
             <div className="panel-body">
+              {uploadResult?.classification && (
+                <div style={{ marginBottom: '20px', padding: '12px 14px', background: 'var(--success-light)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', color: '#065f46', fontSize: '13px' }}>
+                  <strong>Recognised document:</strong> {uploadResult.classification.label || uploadResult.documentType.replaceAll('_', ' ')}
+                  {uploadResult.classification.confidence ? ` · ${Math.round(uploadResult.classification.confidence * 100)}% confidence` : ''}. Confirm the redacted OCR below before any structured extraction or clause review.
+                </div>
+              )}
               {/* Detected PII Badges */}
               <div style={{ marginBottom: '20px' }}>
                 <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
@@ -764,7 +757,7 @@ const DocumentsPage = () => {
                     💾 Save Document Report
                   </button>
                   <button type="button" className="btn btn-success" onClick={() => setActiveTab(3)}>
-                    Review Predatory Traps ({trapFlags.length}) &rarr;
+                    View clause findings ({trapFlags.length}) &rarr;
                   </button>
                 </div>
               </div>
@@ -778,10 +771,10 @@ const DocumentsPage = () => {
             <div className="panel-header">
               <div>
                 <h3 style={{ fontSize: '17px', fontWeight: '700' }}>
-                  {lang === 'hi' ? '⚠️ शिकारी खंड और जोखिम विश्लेषण' : '⚠️ Predatory Clause Trap Detector'}
+                  {lang === 'hi' ? '⚠️ खंड और जोखिम विश्लेषण' : '⚠️ Clause & Risk Analysis'}
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
-                  Found <strong>{trapFlags.length} flagged risk clause(s)</strong> in your contract. Filter by severity or click to inspect plain-language implications.
+                  Findings are shown only when a matching clause is evidenced in the verified document text. An empty result means no supported risk rule matched.
                 </p>
               </div>
 

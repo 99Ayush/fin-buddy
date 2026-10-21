@@ -207,7 +207,7 @@ const AppRoutes = () => {
               />
 
               {/* Default redirect to P1 landing */}
-              <Route path="/" element={<Navigate to="/documents" replace />} />
+              <Route path="/" element={<Navigate to="/home" replace />} />
               <Route path="*" element={<Navigate to="/documents" replace />} />
             </Routes>
           </AppLayout>

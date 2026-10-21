@@ -33,31 +33,22 @@ async function assertOwnership(userId, documentId) {
 async function uploadDocument(req, res) {
   try {
     const userId = requireUserId(req);
-    const documentType = req.body.documentType || 'offer_letter';
     const file = req.file;
 
     // Validate file
     documentsService.validateFile(file);
 
-    // Validate document type
-    const validTypes = ['offer_letter', 'payslip', 'form16', 'loan_agreement'];
-    if (!validTypes.includes(documentType)) {
-      return res.status(400).json({
-        error: 'Invalid document type',
-        validTypes,
-      });
-    }
-
-    // Process through pipeline
-    const result = await documentsService.processUpload(file, documentType, userId);
+    // The server classifies the redacted OCR text. Never trust a client-selected type.
+    const result = await documentsService.processUpload(file, userId);
 
     // Sanitize logs - no PII or salary figures
-    console.log(`[DOCUMENTS] Upload processed: type=${documentType}, pages=${result.ocrMetadata.pageCount}, piiTypes=${Object.keys(result.piiDetected).join(',')}`);
+    console.log(`[DOCUMENTS] Upload processed: type=${result.documentType}, source=${result.classification?.source}, pages=${result.ocrMetadata.pageCount}, piiTypes=${Object.keys(result.piiDetected).join(',')}`);
 
     res.json({
       success: true,
       sessionToken: result.sessionToken,
       documentType: result.documentType,
+      classification: result.classification,
       maskedPreview: {
         text: result.maskedText,
         pages: result.previewPages,
@@ -66,13 +57,14 @@ async function uploadDocument(req, res) {
       maskStats: result.maskStats,
       quickTraps: result.quickTraps,
       ocrMetadata: result.ocrMetadata,
-      message: 'Document processed. Review masked preview and confirm to proceed with AI extraction.',
+      message: 'Document validated and redacted. Review the masked preview and confirm to proceed with AI extraction.',
     });
   } catch (error) {
     console.error('[DOCUMENTS] Upload error:', error.message);
     res.status(error.statusCode || 400).json({
       error: error.message,
-      code: 'UPLOAD_FAILED',
+      code: error.code || 'UPLOAD_FAILED',
+      classification: error.classification || undefined,
     });
   }
 }
@@ -93,21 +85,24 @@ async function extractDocument(req, res) {
     const result = await documentsService.extractStructured(sessionToken, userId);
 
     // Log sanitized
-    console.log(`[DOCUMENTS] Extraction complete: docId=${result.extractedData.documentId}, type=${result.extractedData.documentType}, confidence=${result.confidence}, traps=${result.trapFlags.length}`);
+    console.log(`[DOCUMENTS] Extraction complete: docId=${result.extractedData.documentId}, type=${result.extractedData.documentType}, confidence=${result.confidence}, traps=${result.trapFlags.length}, unverified=${result.unverifiedFields.length}`);
 
     res.json({
       success: true,
       extractedData: result.extractedData,
       trapFlags: result.trapFlags,
       confidence: result.confidence,
-      message: 'Extraction complete. Review the extracted data and trap flags below.',
+      unverifiedFields: result.unverifiedFields,
+      computed: result.computed,
+      message: 'Extraction complete. Review the extracted values and clause findings below.',
     });
   } catch (error) {
     console.error('[DOCUMENTS] Extraction error:', error.message);
     const status = error.statusCode || (error.message.includes('session') ? 404 : 500);
     res.status(status).json({
-      error: error.code === 'INCOMPLETE_EXTRACTION' ? error.message : 'AI extraction is temporarily unavailable. Please retry in a moment or review your upload.',
+      error: error.message,
       code: status === 404 ? 'SESSION_EXPIRED' : (error.code || 'EXTRACTION_FAILED'),
+      details: error.details || undefined,
     });
   }
 }
