@@ -1,509 +1,552 @@
 /**
- * Home Page — Fin-Buddy Dashboard
- * Professional FinTech landing page with hero, stats, feature cards, and how-it-works section.
+ * Home Page — Fin-Buddy Authenticated Dashboard
+ * Displayed after login inside ProtectedRoute + AppLayout.
+ * Reads real user data from the Home API. No fabricated financial figures.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
+import { useSettings } from '../../../components/AppLayout';
+import {
+  getOverview,
+  getTimeline,
+  getActivity,
+  getNextSteps,
+  getMarketMovers,
+} from '../services/homeApi';
+import { t } from '../i18n';
 
-const FeatureCard = ({ icon, title, bullets, ctaLabel, ctaHref, accent, comingSoon }) => {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: '#fff',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 28,
-        boxShadow: hovered ? 'var(--shadow-lg)' : 'var(--shadow-sm)',
-        transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
-        transition: 'all 0.22s ease',
-        position: 'relative',
-        overflow: 'hidden',
-        opacity: comingSoon ? 0.78 : 1,
-      }}
-    >
-      {/* Accent top strip */}
-      <div
+// ── Tiny reusable components ──────────────────────────────────────────────────
+
+const SectionTitle = ({ children }) => (
+  <h2 style={{
+    fontSize: 18,
+    fontWeight: 700,
+    color: 'var(--text-main)',
+    margin: '0 0 16px',
+    letterSpacing: '-0.02em',
+  }}>
+    {children}
+  </h2>
+);
+
+const EmptyState = ({ icon = '📭', title, hint, cta, ctaHref }) => (
+  <div style={{
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '36px 24px',
+    background: 'var(--bg-subtle)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px dashed var(--border-subtle)',
+    textAlign: 'center',
+    gap: 8,
+  }}>
+    <span style={{ fontSize: 36 }}>{icon}</span>
+    <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-secondary)', fontSize: 14 }}>{title}</p>
+    {hint && <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 13 }}>{hint}</p>}
+    {cta && ctaHref && (
+      <Link
+        to={ctaHref}
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: accent,
-          borderRadius: 'var(--radius-lg) var(--radius-lg) 0 0',
+          marginTop: 8,
+          padding: '8px 18px',
+          background: 'var(--primary)',
+          color: '#fff',
+          borderRadius: 'var(--radius-md)',
+          fontWeight: 600,
+          fontSize: 13,
+          textDecoration: 'none',
         }}
-      />
-
-      {comingSoon && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            padding: '3px 10px',
-            background: '#fef9c3',
-            color: '#854d0e',
-            borderRadius: 'var(--radius-full)',
-            fontSize: 11,
-            fontWeight: 700,
-            border: '1px solid #fde047',
-          }}
-        >
-          Coming Soon
-        </div>
-      )}
-
-      <div style={{ fontSize: 36, marginBottom: 12, marginTop: 10 }}>{icon}</div>
-      <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 10px' }}>
-        {title}
-      </h3>
-      <ul style={{ margin: '0 0 20px', paddingLeft: 18, color: 'var(--text-secondary)', fontSize: 13.5, lineHeight: 1.9 }}>
-        {bullets.map((b, i) => <li key={i}>{b}</li>)}
-      </ul>
-      {ctaHref && !comingSoon ? (
-        <Link
-          to={ctaHref}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '9px 18px',
-            background: accent,
-            color: '#fff',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 600,
-            fontSize: 13,
-            textDecoration: 'none',
-            transition: 'opacity 0.15s',
-          }}
-        >
-          {ctaLabel} →
-        </Link>
-      ) : comingSoon ? (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '9px 18px',
-            background: 'var(--bg-subtle)',
-            color: 'var(--text-muted)',
-            borderRadius: 'var(--radius-md)',
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-        >
-          Notify Me →
-        </span>
-      ) : null}
-    </div>
-  );
-};
-
-const StatCard = ({ icon, value, label }) => (
-  <div
-    style={{
-      background: 'rgba(255,255,255,0.12)',
-      border: '1px solid rgba(255,255,255,0.2)',
-      borderRadius: 'var(--radius-md)',
-      padding: '20px 24px',
-      textAlign: 'center',
-    }}
-  >
-    <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
-    <div style={{ fontSize: 28, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em' }}>
-      {value}
-    </div>
-    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', marginTop: 4, fontWeight: 500 }}>
-      {label}
-    </div>
+      >
+        {cta}
+      </Link>
+    )}
   </div>
 );
 
-const HomePage = () => (
-  <div style={{ fontFamily: 'var(--font-sans)' }}>
-    {/* ── Hero ─────────────────────────────────────────────── */}
-    <section
-      style={{
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e40af 100%)',
-        padding: '72px 24px 60px',
-      }}
-    >
-      <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center' }}>
-        {/* Badge */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '5px 16px',
-            background: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: 'var(--radius-full)',
-            fontSize: 12,
-            color: 'rgba(255,255,255,0.8)',
-            fontWeight: 600,
-            marginBottom: 24,
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          🇮🇳 Built for Indian professionals · 100% local PII protection
-        </div>
+const LoadingCard = () => (
+  <div style={{
+    padding: 24,
+    background: 'var(--bg-subtle)',
+    borderRadius: 'var(--radius-md)',
+    animation: 'pulse 1.4s ease-in-out infinite',
+    minHeight: 80,
+  }} />
+);
 
-        <h1
-          style={{
-            fontSize: 'clamp(28px, 5vw, 52px)',
-            fontWeight: 900,
-            color: '#fff',
-            letterSpacing: '-0.04em',
-            lineHeight: 1.1,
-            margin: '0 0 20px',
-          }}
-        >
-          Your Financial
-          <br />
-          <span
-            style={{
-              background: 'linear-gradient(90deg, #a5b4fc, #67e8f9)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Clarity Engine
-          </span>
-        </h1>
-
-        <p
-          style={{
-            fontSize: 17,
-            color: 'rgba(255,255,255,0.72)',
-            margin: '0 auto 36px',
-            maxWidth: 600,
-            lineHeight: 1.65,
-          }}
-        >
-          Decode offer letters · Compare packages · Master negotiations · Know your taxes
-        </p>
-
-        {/* CTA Buttons */}
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 56 }}>
-          <Link
-            to="/documents"
-            style={{
-              padding: '13px 28px',
-              background: '#fff',
-              color: '#312e81',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 700,
-              fontSize: 15,
-              textDecoration: 'none',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.25)',
-              transition: 'transform 0.15s',
-            }}
-          >
-            📄 Analyze My Offer Letter
-          </Link>
-          <Link
-            to="/offers"
-            style={{
-              padding: '13px 28px',
-              background: 'rgba(255,255,255,0.15)',
-              color: '#fff',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 700,
-              fontSize: 15,
-              textDecoration: 'none',
-              border: '1.5px solid rgba(255,255,255,0.3)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            ⚡ Compare Offers
-          </Link>
-        </div>
-
-        {/* Stats Row */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 12,
-            maxWidth: 700,
-            margin: '0 auto',
-          }}
-        >
-          <StatCard icon="🔒" value="₹0" label="Stored in cloud" />
-          <StatCard icon="📐" value="100%" label="Deterministic math" />
-          <StatCard icon="🚩" value="7" label="Trap types detected" />
-          <StatCard icon="📊" value="3" label="ESOP scenarios" />
-        </div>
-      </div>
-    </section>
-
-    {/* ── Trust Badges ─────────────────────────────────────── */}
-    <section
-      style={{
-        background: 'var(--bg-subtle)',
-        borderBottom: '1px solid var(--border-subtle)',
-        padding: '14px 24px',
-      }}
-    >
-      <div
+const ErrorCard = ({ message, onRetry, lang }) => (
+  <div style={{
+    padding: 20,
+    background: '#fff5f5',
+    border: '1px solid #fecdd3',
+    borderRadius: 'var(--radius-md)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  }}>
+    <span style={{ color: '#be123c', fontSize: 14 }}>⚠️ {message}</span>
+    {onRetry && (
+      <button
+        onClick={onRetry}
         style={{
-          maxWidth: 900,
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'center',
-          gap: 32,
-          flexWrap: 'wrap',
+          padding: '6px 14px',
+          background: '#be123c',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 13,
+          cursor: 'pointer',
+          flexShrink: 0,
         }}
       >
-        {[
-          { icon: '🔐', text: 'Local PII Redaction — never sent raw' },
-          { icon: '📐', text: 'Code calculates, AI only explains' },
-          { icon: '🎓', text: 'SEBI-safe educational use' },
-          { icon: '🛡️', text: 'No cloud storage of your documents' },
-        ].map((b) => (
-          <div
-            key={b.text}
-            style={{
+        {t(lang, 'retry')}
+      </button>
+    )}
+  </div>
+);
+
+// ── Custom hook: fetch a Home API section ─────────────────────────────────────
+
+function useHomeSection(fetcher) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await fetcher();
+      setData(result);
+    } catch (err) {
+      setError(err.message || 'Failed to load.');
+    } finally {
+      setLoading(false);
+    }
+  }, [fetcher]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { data, loading, error, reload: load };
+}
+
+// ── Section components ────────────────────────────────────────────────────────
+
+function OverviewSection({ lang, depth }) {
+  const { data, loading, error, reload } = useHomeSection(getOverview);
+  const { user } = useAuth();
+
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const docs = data?.documents || { total: 0, offer_letter: 0, payslip: 0 };
+
+  return (
+    <section>
+      <SectionTitle>{t(lang, 'overviewTitle')}</SectionTitle>
+
+      {/* Hint for depth */}
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+        {t(lang, depth)?.[`overviewHint`]}
+      </p>
+
+      {docs.total === 0 ? (
+        <EmptyState
+          icon="📊"
+          title={t(lang, 'overviewEmpty')}
+          hint={t(lang, 'overviewEmptyHint')}
+          cta="Upload Document"
+          ctaHref="/documents"
+        />
+      ) : (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 14,
+        }}>
+          {[
+            { label: t(lang, 'documentsUploaded'), value: docs.total,        icon: '📁', color: '#4f46e5' },
+            { label: t(lang, 'offerLetters'),      value: docs.offer_letter, icon: '📄', color: '#059669' },
+            { label: t(lang, 'payslips'),           value: docs.payslip,      icon: '🧾', color: '#d97706' },
+          ].map(card => (
+            <div key={card.label} style={{
+              background: '#fff',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px 20px',
+              boxShadow: 'var(--shadow-xs)',
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
-              fontSize: 13,
-              color: 'var(--text-secondary)',
-              fontWeight: 500,
-            }}
-          >
-            <span>{b.icon}</span>
-            <span>{b.text}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    {/* ── Feature Cards ────────────────────────────────────── */}
-    <section style={{ padding: '60px 24px' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h2 style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: '0 0 10px' }}>
-            Everything you need to negotiate with confidence
-          </h2>
-          <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: 0 }}>
-            Purpose-built tools for India's tech workforce — from campus hires to senior ICs
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
-          <FeatureCard
-            icon="📄"
-            title="Offer Letter Intelligence"
-            accent="var(--primary)"
-            bullets={[
-              'PII redaction audit before any AI call',
-              '7 predatory clause detectors (bond, moonlighting, NDA...)',
-              'Monthly net in-hand with Old vs New regime',
-              'Severity-ranked risk flags with negotiation playbook',
-            ]}
-            ctaLabel="Upload Document"
-            ctaHref="/documents"
-          />
-          <FeatureCard
-            icon="💼"
-            title="Offer Comparison & Negotiation"
-            accent="#059669"
-            bullets={[
-              'Side-by-side multi-offer comparison matrix',
-              'ESOP Bear / Base / Bull exit scenarios',
-              'Counter-offer email generator with 3 tone profiles',
-              'AI HR role-play with 5-dimension scorecard',
-            ]}
-            ctaLabel="Compare Offers"
-            ctaHref="/offers"
-          />
-          <FeatureCard
-            icon="💰"
-            title="Salary & Tax Calculator"
-            accent="#d97706"
-            bullets={[
-              'Old vs New regime in-hand comparison',
-              'Section 80C / 80D / 80CCD optimization',
-              'Monthly take-home projections',
-              'Form 16 auto-fill & payslip audit',
-            ]}
-            comingSoon
-          />
-          <FeatureCard
-            icon="📊"
-            title="Financial Health & Goals"
-            accent="#7c3aed"
-            bullets={[
-              'Financial health score (0–100)',
-              'Goal-based SIP planner with timeline',
-              'Debt / EMI payoff optimizer',
-              'Net worth dashboard & emergency fund tracker',
-            ]}
-            comingSoon
-          />
-        </div>
-      </div>
-    </section>
-
-    {/* ── How It Works ─────────────────────────────────────── */}
-    <section
-      style={{
-        background: 'var(--bg-subtle)',
-        borderTop: '1px solid var(--border-subtle)',
-        borderBottom: '1px solid var(--border-subtle)',
-        padding: '60px 24px',
-      }}
-    >
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: '0 0 8px' }}>
-            How It Works
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-            Three steps from document to negotiation-ready
-          </p>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: 0,
-            position: 'relative',
-          }}
-        >
-          {/* Connecting line */}
-          <div
-            style={{
-              position: 'absolute',
-              top: 36,
-              left: '16.67%',
-              right: '16.67%',
-              height: 2,
-              background: 'linear-gradient(90deg, var(--primary), #059669)',
-              zIndex: 0,
-            }}
-          />
-
-          {[
-            { step: '01', icon: '📤', title: 'Upload', desc: 'Drop your offer letter PDF or paste the text. Choose offer letter or payslip type.' },
-            { step: '02', icon: '🔍', title: 'Analyze', desc: 'PII is redacted locally. We extract salary breakdown, trap clauses, and risk flags with severity.' },
-            { step: '03', icon: '🤝', title: 'Negotiate', desc: 'Compare packages, generate counter emails, practice with AI HR, and enter the room prepared.' },
-          ].map((item, i) => (
-            <div
-              key={i}
-              style={{
-                textAlign: 'center',
-                padding: '0 24px',
-                position: 'relative',
-                zIndex: 1,
-              }}
-            >
-              <div
-                style={{
-                  width: 70,
-                  height: 70,
-                  borderRadius: '50%',
-                  background: i === 0 ? 'var(--primary)' : i === 1 ? '#7c3aed' : '#059669',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  margin: '0 auto 16px',
-                  fontSize: 28,
-                  boxShadow: 'var(--shadow-md)',
-                  border: '4px solid #fff',
-                }}
-              >
-                {item.icon}
+              gap: 14,
+            }}>
+              <span style={{ fontSize: 28 }}>{card.icon}</span>
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: card.color, letterSpacing: '-0.04em' }}>
+                  {card.value}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginTop: 2 }}>
+                  {card.label}
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  letterSpacing: '0.12em',
-                  color: 'var(--text-muted)',
-                  marginBottom: 4,
-                }}
-              >
-                STEP {item.step}
-              </div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 8px' }}>
-                {item.title}
-              </h3>
-              <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                {item.desc}
-              </p>
             </div>
           ))}
         </div>
+      )}
+    </section>
+  );
+}
+
+function NextStepsSection({ lang }) {
+  const { data, loading, error, reload } = useHomeSection(getNextSteps);
+
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const steps = data?.steps || [];
+
+  return (
+    <section>
+      <SectionTitle>{t(lang, 'nextStepsTitle')}</SectionTitle>
+      {steps.length === 0 ? (
+        <EmptyState icon="✅" title={t(lang, 'nextStepsEmpty')} />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {steps.map(step => (
+            <Link
+              key={step.id}
+              to={step.route}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                padding: '14px 18px',
+                background: '#fff',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-xs)',
+                textDecoration: 'none',
+                transition: 'box-shadow 0.15s, transform 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-md)'; e.currentTarget.style.transform = 'translateX(3px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-xs)'; e.currentTarget.style.transform = 'none'; }}
+            >
+              <span style={{ fontSize: 22, flexShrink: 0 }}>{step.icon}</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', fontSize: 14 }}>{step.title}</p>
+                <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: 12.5 }}>{step.description}</p>
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: 18, flexShrink: 0 }}>→</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function TimelineSection({ lang }) {
+  const { data, loading, error, reload } = useHomeSection(getTimeline);
+
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const events = data?.events || [];
+
+  return (
+    <section>
+      <SectionTitle>{t(lang, 'timelineTitle')}</SectionTitle>
+      {events.length === 0 ? (
+        <EmptyState
+          icon="📅"
+          title={t(lang, 'timelineEmpty')}
+          hint={t(lang, 'timelineEmptyHint')}
+          cta="Upload Document"
+          ctaHref="/documents"
+        />
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, position: 'relative', paddingLeft: 28 }}>
+          {/* Vertical line */}
+          <div style={{
+            position: 'absolute', left: 9, top: 12, bottom: 12,
+            width: 2, background: 'linear-gradient(180deg, var(--primary), #a5b4fc)',
+            borderRadius: 2,
+          }} />
+          {events.map((ev, i) => (
+            <div key={ev.id || i} style={{ display: 'flex', gap: 14, marginBottom: 20, position: 'relative' }}>
+              {/* Dot */}
+              <div style={{
+                position: 'absolute', left: -28, top: 4,
+                width: 18, height: 18, borderRadius: '50%',
+                background: '#fff', border: '2px solid var(--primary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, flexShrink: 0,
+              }}>
+                {ev.icon}
+              </div>
+              <div style={{
+                background: '#fff',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                boxShadow: 'var(--shadow-xs)',
+                flex: 1,
+              }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', fontSize: 14 }}>{ev.title}</p>
+                {ev.description && (
+                  <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: 12.5 }}>{ev.description}</p>
+                )}
+                <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: 11.5, fontFamily: 'monospace' }}>
+                  {new Date(ev.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ActivitySection({ lang }) {
+  const { data, loading, error, reload } = useHomeSection(getActivity);
+
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const items = data?.activity || [];
+
+  return (
+    <section>
+      <SectionTitle>{t(lang, 'activityTitle')}</SectionTitle>
+      {items.length === 0 ? (
+        <EmptyState
+          icon="🕐"
+          title={t(lang, 'activityEmpty')}
+          hint={t(lang, 'activityEmptyHint')}
+        />
+      ) : (
+        <div style={{
+          background: '#fff',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-xs)',
+          overflow: 'hidden',
+        }}>
+          {items.map((item, i) => (
+            <div key={item.id || i} style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '12px 18px',
+              borderBottom: i < items.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+            }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>
+                {item.type === 'offer_letter' ? '📄' : item.type === 'payslip' ? '🧾' : '📁'}
+              </span>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontWeight: 600, color: 'var(--text-main)', fontSize: 13.5 }}>{item.label}</p>
+                {item.fileName && (
+                  <p style={{ margin: '1px 0 0', color: 'var(--text-secondary)', fontSize: 12 }}>{item.fileName}</p>
+                )}
+              </div>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12, flexShrink: 0, fontFamily: 'monospace' }}>
+                {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function MarketMoversSection({ lang, depth }) {
+  const { data, loading, error, reload } = useHomeSection(getMarketMovers);
+
+  if (loading) return <LoadingCard />;
+  if (error)   return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const movers = data?.movers || [];
+  const isDemo = data?.dataSource === 'demo';
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <SectionTitle>{t(lang, 'marketMoversTitle')}</SectionTitle>
+        <span style={{
+          padding: '3px 10px',
+          background: '#fff7ed',
+          color: '#c2410c',
+          border: '1px solid #fed7aa',
+          borderRadius: 'var(--radius-full)',
+          fontSize: 11,
+          fontWeight: 700,
+        }}>
+          {t(lang, 'marketDisclaimerBadge')}
+        </span>
+        {isDemo && (
+          <span style={{
+            padding: '3px 10px',
+            background: '#fef9c3',
+            color: '#854d0e',
+            border: '1px solid #fde047',
+            borderRadius: 'var(--radius-full)',
+            fontSize: 11,
+            fontWeight: 700,
+          }}>
+            {t(lang, 'marketDemoLabel')}
+          </span>
+        )}
+      </div>
+
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+        {t(lang, depth)?.[`marketHint`]}
+      </p>
+
+      {movers.length === 0 ? (
+        <EmptyState icon="📉" title={t(lang, 'marketUnavailable')} />
+      ) : (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {movers.map(m => (
+            <div key={m.symbol} style={{
+              padding: '10px 16px',
+              background: '#fff',
+              border: `1px solid ${m.direction === 'up' ? '#a7f3d0' : '#fecdd3'}`,
+              borderRadius: 'var(--radius-md)',
+              boxShadow: 'var(--shadow-xs)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              minWidth: 100,
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
+                {m.symbol}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginTop: 2 }}>
+                {m.name}
+              </span>
+              <span style={{
+                fontSize: 15,
+                fontWeight: 800,
+                color: m.direction === 'up' ? '#059669' : '#dc2626',
+                marginTop: 6,
+              }}>
+                {m.change}
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>
+                {m.direction === 'up' ? '▲' : '▼'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Disclaimer box */}
+      <div style={{
+        marginTop: 14,
+        padding: '10px 14px',
+        background: '#fff7ed',
+        border: '1px solid #fed7aa',
+        borderRadius: 'var(--radius-sm)',
+        fontSize: 12,
+        color: '#92400e',
+        lineHeight: 1.55,
+      }}>
+        🛡️ {t(lang, 'marketDisclaimer')}
       </div>
     </section>
+  );
+}
 
-    {/* ── Quick Start CTA ──────────────────────────────────── */}
-    <section style={{ padding: '52px 24px', textAlign: 'center' }}>
-      <div style={{ maxWidth: 600, margin: '0 auto' }}>
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-main)', margin: '0 0 12px', letterSpacing: '-0.03em' }}>
-          Ready to take control of your compensation?
-        </h2>
-        <p style={{ fontSize: 15, color: 'var(--text-secondary)', margin: '0 0 28px' }}>
-          No sign-up required. Your documents never leave your browser unredacted.
-        </p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link
-            to="/documents"
-            style={{
-              padding: '12px 26px',
-              background: 'var(--primary)',
-              color: '#fff',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 700,
-              fontSize: 14,
-              textDecoration: 'none',
-              boxShadow: '0 2px 8px rgba(79,70,229,0.3)',
-            }}
-          >
-            📄 Analyze Offer Letter
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+const HomePage = () => {
+  const { user }         = useAuth();
+  const { lang, depth }  = useSettings();
+
+  const joinDate = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
+
+  return (
+    <div style={{ fontFamily: 'var(--font-sans)', maxWidth: 960, margin: '0 auto', padding: '32px 24px 64px' }}>
+
+      {/* ── Welcome banner ────────────────────────────────────────────── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 60%, #1e40af 100%)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '28px 32px',
+        marginBottom: 32,
+        color: '#fff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 16,
+        boxShadow: '0 8px 32px rgba(30,27,75,0.35)',
+      }}>
+        <div>
+          <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+            {t(lang, 'welcomeBack')}
+          </p>
+          <h1 style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 800, letterSpacing: '-0.03em' }}>
+            {user?.name || '…'}
+          </h1>
+          {joinDate && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
+              {t(lang, 'memberSince')} {joinDate}
+            </p>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link to="/documents" style={{
+            padding: '9px 20px', background: '#fff', color: '#312e81',
+            borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: 13, textDecoration: 'none',
+          }}>
+            📄 Documents
           </Link>
-          <Link
-            to="/offers"
-            style={{
-              padding: '12px 26px',
-              background: '#fff',
-              color: 'var(--text-main)',
-              borderRadius: 'var(--radius-md)',
-              fontWeight: 700,
-              fontSize: 14,
-              textDecoration: 'none',
-              border: '1px solid var(--border-subtle)',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          >
-            ⚖️ Compare Offers
+          <Link to="/offers" style={{
+            padding: '9px 20px', background: 'rgba(255,255,255,0.15)',
+            color: '#fff', borderRadius: 'var(--radius-md)', fontWeight: 700, fontSize: 13,
+            textDecoration: 'none', border: '1.5px solid rgba(255,255,255,0.3)',
+          }}>
+            💼 Offers
           </Link>
         </div>
       </div>
-    </section>
 
-    {/* ── SEBI Footer Disclaimer ───────────────────────────── */}
-    <div
-      style={{
-        background: 'var(--bg-subtle)',
-        borderTop: '1px solid var(--border-subtle)',
-        padding: '16px 24px',
-        textAlign: 'center',
-        fontSize: 12,
-        color: 'var(--text-muted)',
-      }}
-    >
-      🛡️ Fin-Buddy is an educational tool only. Not registered with SEBI. All salary & tax calculations are deterministic code — never trusted to AI outputs.
+      {/* ── Two-column grid on wide screens ──────────────────────────── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gap: 28,
+      }}>
+        {/* Left column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <OverviewSection  lang={lang} depth={depth} />
+          <NextStepsSection lang={lang} />
+          <MarketMoversSection lang={lang} depth={depth} />
+        </div>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          <TimelineSection lang={lang} />
+          <ActivitySection lang={lang} />
+        </div>
+      </div>
+
+      {/* ── Global pulse animation ───────────────────────────────────── */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.45; }
+        }
+      `}</style>
     </div>
-  </div>
-);
+  );
+};
 
 export default HomePage;

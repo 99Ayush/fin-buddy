@@ -56,11 +56,12 @@ export const AppLayout = ({ children }) => {
 
   // P1 = live; P2/P3 = under development
   const navLinks = [
-    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़' : 'Documents', icon: '📄', tier: 'p1' },
-    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत' : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
-    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर' : 'Salary & Tax', icon: '💰', tier: 'p2' },
-    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना' : 'Money Plan', icon: '📈', tier: 'p2' },
-    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक' : 'Tax Assistant', icon: '🤖', tier: 'p3' },
+    { to: '/home',      label: lang === 'hi' ? 'होम'              : 'Home',              icon: '🏠', tier: 'p3-live' },
+    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़'         : 'Documents',          icon: '📄', tier: 'p1' },
+    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत'   : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
+    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर'       : 'Salary & Tax',       icon: '💰', tier: 'p2' },
+    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना'     : 'Money Plan',         icon: '📈', tier: 'p2' },
+    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक'        : 'Ask & CA Help',      icon: '🤖', tier: 'p3-live' },
   ];
 
   return (
@@ -91,7 +92,7 @@ export const AppLayout = ({ children }) => {
               <nav className="nav-links">
                 {/* P1 items */}
                 {navLinks
-                  .filter((item) => item.tier === 'p1')
+                  .filter((item) => item.tier === 'p1' || item.tier === 'p3-live')
                   .map((item) => (
                     <NavLink
                       key={item.to}

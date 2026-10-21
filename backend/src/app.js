@@ -83,10 +83,10 @@ app.use('/api/salarytax', require('./module/salarytax').router);
 app.use('/api/moneyplan', require('./module/moneyplan').router);
 
 // P3: Home/Dashboard module
-// app.use('/api/home', require('./module/home').router);
+app.use('/api/home', require('./module/home').router);
 
 // P3: Assistant module
-// app.use('/api/assistant', require('./module/assistant').router);
+app.use('/api/assistant', require('./module/assistant').router);
 
 // ============================================
 // ERROR HANDLING
