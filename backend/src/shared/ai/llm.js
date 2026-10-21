@@ -50,8 +50,8 @@ const providers = {
   },
   groq: {
     name: 'Groq',
-    models: ['llama-3.1-70b-versatile', 'llama-3.1-8b-instant', 'mixtral-8x7b-32768'],
-    defaultModel: 'llama-3.1-70b-versatile',
+    models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b', 'qwen/qwen3.8-27b'],
+    defaultModel: 'openai/gpt-oss-120b',
     baseUrl: 'https://api.groq.com/openai/v1',
     apiKeyEnv: 'GROQ_API_KEY',
     supportsJsonMode: true,

@@ -21,7 +21,7 @@ const upload = multer({
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, PNG, JPG allowed.'), false);
+      cb(new Error('Please upload a valid document (PDF, PNG, or JPG).'), false);
     }
   },
 });
