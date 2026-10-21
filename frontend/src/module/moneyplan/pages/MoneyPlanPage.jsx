@@ -92,7 +92,7 @@ function Disclaimer({ text }) {
 
 // ── Tab 1: Health Score ──────────────────────────────────────
 function HealthScoreTab() {
-  const [params, setParams] = useState({ savingsRate: 0.2, debtBurden: 0.3, emergencyFundMonths: 4, expensesRatio: 0.5 });
+  const [params, setParams] = useState({ savingsRate: 0.2, debtBurden: 0.3, emergencyFundMonths: 6, expensesRatio: 0.5 });
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const set = (k) => (v) => setParams((p) => ({ ...p, [k]: v }));

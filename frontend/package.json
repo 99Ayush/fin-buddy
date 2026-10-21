@@ -11,16 +11,17 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "axios": "^1.7.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
-    "axios": "^1.7.7"
+    "styled-components": "^6.6.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.8",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.35.0",
-    "eslint-plugin-react-hooks": "^4.6.2"
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "vite": "^5.4.8"
   }
 }

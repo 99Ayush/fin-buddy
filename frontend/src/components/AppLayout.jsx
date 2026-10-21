@@ -56,12 +56,11 @@ export const AppLayout = ({ children }) => {
 
   // All currently registered modules are available in the app.
   const navLinks = [
-    { to: '/home',      label: lang === 'hi' ? 'होम'              : 'Home',              icon: '🏠', tier: 'p3-live' },
-    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़' : 'Documents', icon: '📄', tier: 'p1' },
-    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत' : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
-    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर' : 'Salary & Tax', icon: '💰', tier: 'live' },
-    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना' : 'Money Plan', icon: '📈', tier: 'live' },
-    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक' : 'Ask & CA Help', icon: '🤖', tier: 'p3-live' },
+    { to: '/documents', label: 'Documents',            tier: 'p1' },
+    { to: '/salarytax', label: 'Salary & Tax',          tier: 'live' },
+    { to: '/moneyplan', label: 'Money Plan',            tier: 'live' },
+    { to: '/offers',    label: 'Offers & Negotiation',  tier: 'p1' },
+    { to: '/assistant', label: 'Help Bot',               tier: 'p3-live' },
   ];
 
   return (
@@ -71,22 +70,8 @@ export const AppLayout = ({ children }) => {
           {/* Top Navigation Bar */}
           <header className="app-navbar">
             <div className="app-container navbar-inner">
-              <NavLink to="/documents" className="nav-brand">
-                <div className="brand-icon">₹</div>
-                <span>Fin-Buddy</span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    padding: '2px 7px',
-                    background: '#ecfdf5',
-                    color: '#059669',
-                    border: '1px solid #a7f3d0',
-                    borderRadius: 9999,
-                    fontWeight: 700,
-                  }}
-                >
-                  P1 Live
-                </span>
+              <NavLink to="/home" className="nav-brand" aria-label="Fin-Buddy home">
+                <span>fin-buddy</span>
               </NavLink>
 
               <nav className="nav-links">
@@ -99,7 +84,6 @@ export const AppLayout = ({ children }) => {
                       to={item.to}
                       className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
                     >
-                      <span>{item.icon}</span>
                       <span>{item.label}</span>
                     </NavLink>
                   ))}
@@ -107,44 +91,6 @@ export const AppLayout = ({ children }) => {
               </nav>
 
               <div className="nav-controls">
-                {/* Language Toggle */}
-                <div className="pill-toggle">
-                  <button
-                    type="button"
-                    className={`pill-option ${lang === 'en' ? 'active' : ''}`}
-                    onClick={() => setLang('en')}
-                  >
-                    EN
-                  </button>
-                  <button
-                    type="button"
-                    className={`pill-option ${lang === 'hi' ? 'active' : ''}`}
-                    onClick={() => setLang('hi')}
-                  >
-                    हिन्दी
-                  </button>
-                </div>
-
-                {/* Depth Toggle (Fresher / Veteran) */}
-                <div className="pill-toggle">
-                  <button
-                    type="button"
-                    className={`pill-option ${depth === 'fresher' ? 'active' : ''}`}
-                    onClick={() => setDepth('fresher')}
-                    title="Simple plain-English explanations"
-                  >
-                    Fresher
-                  </button>
-                  <button
-                    type="button"
-                    className={`pill-option ${depth === 'veteran' ? 'active' : ''}`}
-                    onClick={() => setDepth('veteran')}
-                    title="In-depth legal & statutory tax explanations"
-                  >
-                    Veteran
-                  </button>
-                </div>
-
                 {/* Profile Button */}
                 {user && (
                   <div className="profile-menu" ref={profileRef}>

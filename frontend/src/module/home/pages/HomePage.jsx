@@ -13,6 +13,8 @@ import {
   getActivity,
   getNextSteps,
   getMarketMovers,
+  getSavingsGoals,
+  getFinancialHealthScore,
 } from '../services/homeApi';
 import { t } from '../i18n';
 
@@ -247,6 +249,152 @@ function NextStepsSection({ lang }) {
   );
 }
 
+function formatCurrency(value) {
+  return `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
+}
+
+function SavingsGoalsSection({ lang }) {
+  const { data, loading, error, reload } = useHomeSection(getSavingsGoals);
+
+  if (loading) return <LoadingCard />;
+  if (error) return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const goals = data?.data || [];
+  const activeGoals = goals
+    .filter((goal) => Number(goal.targetAmount) > 0)
+    .sort((a, b) => new Date(a.targetDate) - new Date(b.targetDate));
+  const goal = activeGoals[0];
+
+  if (!goal) {
+    return (
+      <section>
+        <SectionTitle>🎯 Savings Goals</SectionTitle>
+        <EmptyState
+          icon="🎯"
+          title="Turn a plan into progress"
+          hint="Set an emergency fund, home, travel, or purchase goal and track it here."
+          cta="Create a savings goal"
+          ctaHref="/moneyplan"
+        />
+      </section>
+    );
+  }
+
+  const target = Number(goal.targetAmount);
+  const saved = Math.min(target, Math.max(0, Number(goal.currentSavings) || 0));
+  const progress = Math.min(100, Math.round((saved / target) * 100));
+  const monthsRemaining = Math.max(1, Math.ceil((new Date(goal.targetDate) - new Date()) / (1000 * 60 * 60 * 24 * 30.44)));
+  const monthlyNeeded = Math.ceil(Math.max(0, target - saved) / monthsRemaining);
+
+  return (
+    <section>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+        <SectionTitle>🎯 Savings Goals</SectionTitle>
+        <Link to="/moneyplan" style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+          View all →
+        </Link>
+      </div>
+      <div style={{ background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '20px', boxShadow: 'var(--shadow-xs)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 750, color: 'var(--text-main)' }}>{goal.title}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              Target: {new Date(goal.targetDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}
+            </p>
+          </div>
+          <span style={{ color: 'var(--primary)', fontWeight: 800, fontSize: 18 }}>{progress}%</span>
+        </div>
+        <div style={{ height: 9, background: 'var(--bg-subtle)', borderRadius: 999, margin: '18px 0 10px', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg, #4f46e5, #818cf8)', borderRadius: 999, transition: 'width 0.35s ease' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text-secondary)', gap: 12 }}>
+          <span><strong style={{ color: 'var(--text-main)' }}>{formatCurrency(saved)}</strong> of {formatCurrency(target)}</span>
+          <span>{activeGoals.length > 1 ? `+${activeGoals.length - 1} more` : 'On track'}</span>
+        </div>
+        <div style={{ marginTop: 16, padding: '10px 12px', background: '#eef2ff', borderRadius: 'var(--radius-sm)', color: '#3730a3', fontSize: 12.5 }}>
+          Save <strong>{formatCurrency(monthlyNeeded)}/month</strong> to reach this goal on time.
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinancialHealthGraph({ lang }) {
+  const { data, loading, error, reload } = useHomeSection(getFinancialHealthScore);
+
+  if (loading) return <LoadingCard />;
+  if (error) return <ErrorCard message={error} onRetry={reload} lang={lang} />;
+
+  const result = data?.data;
+  const score = Number(result?.score);
+  const scoreColor = score >= 70 ? 'var(--success)' : score >= 40 ? 'var(--warning)' : 'var(--danger)';
+  const scoreLabel = score >= 70 ? 'Good' : score >= 40 ? 'Fair' : 'Needs attention';
+  const factors = [
+    ['Savings rate', result?.breakdown?.savingsRateScore],
+    ['Debt burden', result?.breakdown?.debtScore],
+    ['Emergency fund', result?.breakdown?.emergencyFundScore],
+    ['Expenses', result?.breakdown?.expensesScore],
+  ];
+
+  return (
+    <section style={{ background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '24px', boxShadow: 'var(--shadow-xs)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div>
+          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 12, fontWeight: 800, letterSpacing: '0.07em', textTransform: 'uppercase' }}>Financial health</p>
+          <h2 style={{ margin: '5px 0 0', fontSize: 20, color: 'var(--text-main)', letterSpacing: '-0.03em' }}>Score breakdown</h2>
+        </div>
+        <div style={{ width: 92, height: 92, borderRadius: '50%', background: `conic-gradient(${scoreColor} ${score * 3.6}deg, var(--bg-subtle) 0deg)`, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <strong style={{ color: scoreColor, fontSize: 24, lineHeight: 1 }}>{score}</strong>
+            <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>/ 100</span>
+          </div>
+        </div>
+      </div>
+      <p style={{ margin: '14px 0', color: scoreColor, fontSize: 13, fontWeight: 750 }}>{scoreLabel}</p>
+      <div style={{ display: 'grid', gap: 10 }}>
+        {factors.map(([label, value]) => (
+          <div key={label}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4, color: 'var(--text-secondary)' }}>
+              <span>{label}</span><strong style={{ color: 'var(--text-main)' }}>{value}/100</strong>
+            </div>
+            <div style={{ height: 6, borderRadius: 99, background: 'var(--bg-subtle)', overflow: 'hidden' }}>
+              <div style={{ width: `${Number(value) || 0}%`, height: '100%', borderRadius: 99, background: scoreColor }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <Link to="/moneyplan" style={{ display: 'inline-block', marginTop: 18, fontSize: 13, fontWeight: 750, color: 'var(--primary)', textDecoration: 'none' }}>
+        Adjust health score inputs →
+      </Link>
+    </section>
+  );
+}
+
+function EmiReminderCard() {
+  return (
+    <section style={{ background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-lg)', padding: '24px', minHeight: 180, boxShadow: 'var(--shadow-xs)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div>
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>EMI reminder</p>
+        <h2 style={{ margin: '10px 0 6px', fontSize: 22, letterSpacing: '-0.03em', color: 'var(--text-main)' }}>No loan tracked yet</h2>
+        <p style={{ margin: 0, fontSize: 13, lineHeight: 1.55, color: 'var(--text-secondary)' }}>Calculate an EMI to see your monthly payment and repayment breakdown.</p>
+      </div>
+      <Link to="/moneyplan" style={{ marginTop: 18, fontSize: 13, fontWeight: 750, color: 'var(--primary)', textDecoration: 'none' }}>Open EMI calculator →</Link>
+    </section>
+  );
+}
+
+function QuickActionCard({ icon, title, description, href, accent = '#4f46e5' }) {
+  return (
+    <Link to={href} style={{ background: '#fff', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: '18px 20px', boxShadow: 'var(--shadow-xs)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <span style={{ width: 42, height: 42, borderRadius: 12, background: `${accent}16`, display: 'grid', placeItems: 'center', fontSize: 21, flexShrink: 0 }}>{icon}</span>
+      <span>
+        <span style={{ display: 'block', color: 'var(--text-main)', fontWeight: 750, fontSize: 14 }}>{title}</span>
+        <span style={{ display: 'block', color: 'var(--text-secondary)', fontSize: 12.5, marginTop: 3, lineHeight: 1.4 }}>{description}</span>
+      </span>
+    </Link>
+  );
+}
+
 function TimelineSection({ lang }) {
   const { data, loading, error, reload } = useHomeSection(getTimeline);
 
@@ -472,7 +620,7 @@ const HomePage = () => {
     : null;
 
   return (
-    <div style={{ fontFamily: 'var(--font-sans)', maxWidth: 960, margin: '0 auto', padding: '32px 24px 64px' }}>
+    <div style={{ fontFamily: 'var(--font-sans)', maxWidth: 1120, margin: '0 auto', padding: '32px 24px 64px' }}>
 
       {/* ── Welcome banner ────────────────────────────────────────────── */}
       <div style={{
@@ -489,9 +637,7 @@ const HomePage = () => {
         boxShadow: '0 8px 32px rgba(30,27,75,0.35)',
       }}>
         <div>
-          <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-            {t(lang, 'welcomeBack')}
-          </p>
+          <p style={{ margin: '0 0 4px', fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>{t(lang, 'welcomeBack')}</p>
           <h1 style={{ margin: 0, fontSize: 'clamp(20px, 4vw, 28px)', fontWeight: 800, letterSpacing: '-0.03em' }}>
             {user?.name || '…'}
           </h1>
@@ -518,24 +664,36 @@ const HomePage = () => {
         </div>
       </div>
 
-      {/* ── Two-column grid on wide screens ──────────────────────────── */}
+      {/* Dashboard layout: score and goals left, live monitoring right. */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: 28,
+        gridTemplateColumns: 'minmax(0, 1.15fr) minmax(320px, 0.85fr)',
+        gap: 24,
       }}>
-        {/* Left column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          <OverviewSection  lang={lang} depth={depth} />
-          <NextStepsSection lang={lang} />
+          <FinancialHealthGraph lang={lang} />
+          <SavingsGoalsSection lang={lang} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
           <MarketMoversSection lang={lang} depth={depth} />
+          <EmiReminderCard />
         </div>
+      </div>
 
-        {/* Right column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          <TimelineSection lang={lang} />
-          <ActivitySection lang={lang} />
+      <section style={{ marginTop: 28 }}>
+        <SectionTitle>Plan ahead</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
+          <QuickActionCard icon="🏦" title="EMI Calculator" description="Estimate payments, total interest, and a repayment schedule." href="/moneyplan" accent="#d97706" />
+          <QuickActionCard icon="🔁" title="What-If Planner" description="Compare prepaying versus investing and model your next financial move." href="/moneyplan" accent="#059669" />
+          <QuickActionCard icon="📄" title="Review my documents" description="Upload an offer letter or payslip for a salary and clause review." href="/documents" accent="#2563eb" />
         </div>
+      </section>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 28, marginTop: 32 }}>
+        <OverviewSection lang={lang} depth={depth} />
+        <NextStepsSection lang={lang} />
+        <TimelineSection lang={lang} />
+        <ActivitySection lang={lang} />
       </div>
 
       {/* ── Global pulse animation ───────────────────────────────────── */}

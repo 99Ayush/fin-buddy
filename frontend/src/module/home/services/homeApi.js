@@ -28,3 +28,13 @@ export async function getNextSteps() {
 export async function getMarketMovers() {
   return api.get('/home/market-movers');
 }
+
+/** GET /api/moneyplan/goals — goal data shared with the Money Plan module. */
+export async function getSavingsGoals() {
+  return api.get('/moneyplan/goals');
+}
+
+/** GET /api/moneyplan/score — the same calculation used by Money Plan's Health Score tab. */
+export async function getFinancialHealthScore() {
+  return api.get('/moneyplan/score');
+}

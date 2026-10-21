@@ -123,53 +123,48 @@ a:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 68px;
-  gap: 20px;
+  min-height: 80px;
+  gap: 28px;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 19px;
+  font-size: 18px;
   color: var(--text-main);
   text-decoration: none;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.05em;
+  white-space: nowrap;
 }
 
 .nav-brand:hover {
   text-decoration: none;
 }
 
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 800;
-  font-size: 18px;
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35);
-}
-
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  flex: 1;
 }
 
 .nav-item {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
   font-weight: 500;
-  font-size: 14px;
+  font-size: 11px;
   color: var(--text-secondary);
   text-decoration: none;
   transition: var(--transition);
@@ -182,9 +177,9 @@ a:hover {
 }
 
 .nav-item.active {
-  background: var(--primary-light);
-  color: var(--primary);
-  font-weight: 600;
+  background: #f1f5f9;
+  color: var(--text-main);
+  font-weight: 700;
 }
 
 .nav-controls {
@@ -659,22 +654,23 @@ a:hover {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5, #7c3aed);
-  color: #fff;
-  font-size: 0.9rem;
+  background: #fff;
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
   font-weight: 700;
-  border: none;
+  border: 1px solid #94a3b8;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.4);
+  box-shadow: none;
   transition: transform 0.15s, box-shadow 0.15s;
   flex-shrink: 0;
 }
 .profile-avatar:hover {
   transform: scale(1.08);
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.5);
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-dropdown {
