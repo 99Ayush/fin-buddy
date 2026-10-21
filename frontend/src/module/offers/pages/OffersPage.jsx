@@ -15,6 +15,13 @@ const DEMO_OFFERS = [
   { companyName: 'Razorpay', ctcAnnual: 2800000, baseSalary: 1680000, hra: 840000, variableBonus: 280000, noticePeriod: 60, bondAmount: 0 },
 ];
 
+// Keeps the AI practice tools immediately usable even before a document is uploaded.
+// The same object is sent to the backend; no compensation figures are generated client-side.
+const NEGOTIATION_DEMO_OFFER = {
+  companyName: 'Demo Tech Co.', ctcAnnual: 1800000, baseSalary: 1080000,
+  hra: 360000, variableBonus: 180000, noticePeriod: 60, bondAmount: 0,
+};
+
 const TABS = [
   { id: 0, label: 'Compare Offers', icon: '⚖️', shortLabel: 'Compare' },
   { id: 1, label: 'ESOP Calculator', icon: '📈', shortLabel: 'ESOP' },
@@ -141,8 +148,8 @@ const OffersPage = () => {
             />
           )}
           {activeTab === 1 && <EsopCalculator showToast={showToast} />}
-          {activeTab === 2 && <CounterEmail savedOffers={savedOffers} showToast={showToast} />}
-          {activeTab === 3 && <HrRoleplay savedOffers={savedOffers} showToast={showToast} />}
+          {activeTab === 2 && <CounterEmail savedOffers={savedOffers} demoOffer={NEGOTIATION_DEMO_OFFER} showToast={showToast} />}
+          {activeTab === 3 && <HrRoleplay savedOffers={savedOffers} demoOffer={NEGOTIATION_DEMO_OFFER} showToast={showToast} />}
         </div>
       </div>
 

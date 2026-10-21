@@ -19,6 +19,10 @@ const llmCache = new Map(); // cacheKey -> { response, timestamp, model }
 // Cache TTL: 24 hours
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+// Per-call network timeout. Free-tier providers can be slow, but a hung request
+// should surface as an error rather than blocking the user forever.
+const LLM_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 45000;
+
 // ============================================
 // PROVIDER CONFIGURATIONS
 // ============================================
@@ -262,6 +266,7 @@ async function callGemini(messages, schema, model, apiKey, options = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -300,6 +305,7 @@ async function callOpenAICompatible(messages, schema, model, apiKey, providerKey
       }),
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -384,6 +390,7 @@ async function callLlm(prompt, options = {}) {
         contents: messages.map(m => ({ role: m.role === 'system' ? 'user' : m.role, parts: [{ text: m.content }] })),
         generationConfig: { temperature: options.temperature ?? 0.3, maxOutputTokens: options.maxTokens ?? 2048 },
       }),
+      signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -405,6 +412,7 @@ async function callLlm(prompt, options = {}) {
       temperature: options.temperature ?? 0.3,
       max_tokens: options.maxTokens ?? 2048,
     }),
+    signal: AbortSignal.timeout(LLM_TIMEOUT_MS),
   });
   const data = await res.json();
   if (!res.ok) {

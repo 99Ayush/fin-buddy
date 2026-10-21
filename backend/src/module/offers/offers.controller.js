@@ -117,14 +117,16 @@ async function calculateEsop(req, res) {
  */
 async function generateEmail(req, res) {
   try {
-    const { currentOfferId, asks, tone, competingOfferIds } = req.body;
+    const { currentOfferId, currentOffer: suppliedOffer, asks, tone, competingOfferIds } = req.body;
     const userId = req.user?.id || req.headers['x-user-id'] || 'anonymous';
 
-    if (!currentOfferId) {
-      return res.status(400).json({ error: 'currentOfferId required', code: 'MISSING_OFFER' });
+    if (!currentOfferId && !suppliedOffer) {
+      return res.status(400).json({ error: 'currentOfferId or currentOffer required', code: 'MISSING_OFFER' });
     }
 
-    const currentOffer = await reportStore.getReport(currentOfferId);
+    const currentOffer = currentOfferId
+      ? await reportStore.getReport(currentOfferId)
+      : normalizeManualOffer(suppliedOffer);
     if (!currentOffer || currentOffer.documentType !== 'offer_letter') {
       return res.status(404).json({ error: 'Offer not found', code: 'OFFER_NOT_FOUND' });
     }
@@ -159,14 +161,14 @@ async function generateEmail(req, res) {
  */
 async function roleplayTurn(req, res) {
   try {
-    const { offerId, conversationHistory, userMessage, persona, turnNumber } = req.body;
+    const { offerId, offer: suppliedOffer, conversationHistory, userMessage, persona, turnNumber } = req.body;
     const userId = req.user?.id || req.headers['x-user-id'] || 'anonymous';
 
-    if (!offerId || !userMessage) {
-      return res.status(400).json({ error: 'offerId and userMessage required', code: 'MISSING_PARAMS' });
+    if ((!offerId && !suppliedOffer) || !userMessage) {
+      return res.status(400).json({ error: 'offerId or offer, and userMessage required', code: 'MISSING_PARAMS' });
     }
 
-    const offer = await reportStore.getReport(offerId);
+    const offer = offerId ? await reportStore.getReport(offerId) : normalizeManualOffer(suppliedOffer);
     if (!offer || offer.documentType !== 'offer_letter') {
       return res.status(404).json({ error: 'Offer not found', code: 'OFFER_NOT_FOUND' });
     }
@@ -192,13 +194,13 @@ async function roleplayTurn(req, res) {
  */
 async function generateScorecard(req, res) {
   try {
-    const { offerId, conversationHistory, persona } = req.body;
+    const { offerId, offer: suppliedOffer, conversationHistory, persona } = req.body;
 
-    if (!offerId || !conversationHistory) {
-      return res.status(400).json({ error: 'offerId and conversationHistory required', code: 'MISSING_PARAMS' });
+    if ((!offerId && !suppliedOffer) || !conversationHistory) {
+      return res.status(400).json({ error: 'offerId or offer, and conversationHistory required', code: 'MISSING_PARAMS' });
     }
 
-    const offer = await reportStore.getReport(offerId);
+    const offer = offerId ? await reportStore.getReport(offerId) : normalizeManualOffer(suppliedOffer);
     if (!offer) {
       return res.status(404).json({ error: 'Offer not found', code: 'OFFER_NOT_FOUND' });
     }

@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import {
   createConversation, listConversations, getConversation,
   deleteConversation, sendMessage,
-  submitCaRequest, listCaRequests, generateCaPack,
+  submitCaRequest, listCaRequests,
 } from '../services/assistantApi';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -700,14 +700,12 @@ export default function AssistantPage() {
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 6, background: 'var(--bg-subtle)', padding: 4, borderRadius: 'var(--radius-md)', marginBottom: 20, width: 'fit-content' }}>
-        <Tab label="💬 Chat"         active={tab === 'chat'} onClick={() => setTab('chat')} />
-        <Tab label="📞 CA Requests"  active={tab === 'ca'}   onClick={() => setTab('ca')} />
-        <Tab label="📋 Summary Pack" active={tab === 'pack'} onClick={() => setTab('pack')} />
+        <Tab label="💬 Chat"        active={tab === 'chat'} onClick={() => setTab('chat')} />
+        <Tab label="📞 CA Requests" active={tab === 'ca'}   onClick={() => setTab('ca')} />
       </div>
 
       {tab === 'chat' && <ChatPanel />}
       {tab === 'ca'   && <CaPanel activeConvId={activeConvId} />}
-      {tab === 'pack' && <PackPanel conversations={convList} activeConvId={activeConvId} />}
     </div>
   );
 }

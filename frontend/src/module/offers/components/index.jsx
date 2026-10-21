@@ -734,7 +734,7 @@ export const EsopCalculator = ({ showToast }) => {
 // ─────────────────────────────────────────────────────────────
 // COUNTER EMAIL
 // ─────────────────────────────────────────────────────────────
-export const CounterEmail = ({ savedOffers, showToast }) => {
+export const CounterEmail = ({ savedOffers, demoOffer, showToast }) => {
   const [currentOfferId, setCurrentOfferId] = useState('');
   const [asks, setAsks] = useState([
     { type: 'higher_base', targetValue: '', justification: '' },
@@ -775,7 +775,7 @@ export const CounterEmail = ({ savedOffers, showToast }) => {
         method: 'POST',
         headers: API_HEADER(),
         body: JSON.stringify({
-          currentOfferId,
+          ...(currentOfferId === '__demo__' ? { currentOffer: demoOffer } : { currentOfferId }),
           asks: asks.filter((a) => a.targetValue),
           tone,
           competingOfferIds: competingOffers.map((o) => o.documentId),
@@ -813,7 +813,7 @@ export const CounterEmail = ({ savedOffers, showToast }) => {
         </p>
       </div>
 
-      {savedOffers.length === 0 ? (
+      {savedOffers.length === 0 && !demoOffer ? (
         <div
           style={{
             padding: '32px 24px',
@@ -849,6 +849,7 @@ export const CounterEmail = ({ savedOffers, showToast }) => {
                 style={{ ...inputStyle }}
               >
                 <option value="">Choose a saved offer...</option>
+                {demoOffer && <option value="__demo__">Demo Tech Co. — ₹18.0L (practice)</option>}
                 {savedOffers.map((o) => (
                   <option key={o.documentId} value={o.documentId}>
                     {o.companyName} — ₹{((o.ctcAnnual || 0) / 100000).toFixed(1)}L
@@ -1049,7 +1050,7 @@ export const CounterEmail = ({ savedOffers, showToast }) => {
 // ─────────────────────────────────────────────────────────────
 // HR ROLEPLAY
 // ─────────────────────────────────────────────────────────────
-export const HrRoleplay = ({ savedOffers, showToast }) => {
+export const HrRoleplay = ({ savedOffers, demoOffer, showToast }) => {
   const [offerId, setOfferId] = useState('');
   const [persona, setPersona] = useState('friendly_recruiter');
   const [messages, setMessages] = useState([]);
@@ -1117,7 +1118,7 @@ export const HrRoleplay = ({ savedOffers, showToast }) => {
         method: 'POST',
         headers: API_HEADER(),
         body: JSON.stringify({
-          offerId,
+          ...(offerId === '__demo__' ? { offer: demoOffer } : { offerId }),
           conversationHistory: messages.map((m) => m.content),
           userMessage: userMsg,
           persona,
@@ -1137,7 +1138,7 @@ export const HrRoleplay = ({ savedOffers, showToast }) => {
             method: 'POST',
             headers: API_HEADER(),
             body: JSON.stringify({
-              offerId,
+              ...(offerId === '__demo__' ? { offer: demoOffer } : { offerId }),
               conversationHistory: updatedMessages.map((m) => m.content),
               persona,
             }),
@@ -1146,8 +1147,12 @@ export const HrRoleplay = ({ savedOffers, showToast }) => {
           if (scoreData.success) {
             setScorecard(scoreData.scorecard);
             if (showToast) showToast('Scorecard ready! Review your performance.', 'success');
+          } else if (showToast) {
+            showToast('Scorecard failed: ' + (scoreData.error || 'Unknown error'), 'error');
           }
         }
+      } else if (showToast) {
+        showToast('HR response failed: ' + (data.error || 'Unknown error'), 'error');
       }
     } catch (e) {
       if (showToast) showToast('Roleplay error: ' + e.message, 'error');
@@ -1193,7 +1198,7 @@ export const HrRoleplay = ({ savedOffers, showToast }) => {
             {/* Offer Select */}
             <div style={sectionCard}>
               <label style={{ ...labelStyle, marginBottom: 8 }}>Select Offer</label>
-              {savedOffers.length === 0 ? (
+              {savedOffers.length === 0 && !demoOffer ? (
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
                   No saved offers. Extract from Documents first.
                 </p>
@@ -1204,6 +1209,7 @@ export const HrRoleplay = ({ savedOffers, showToast }) => {
                   style={inputStyle}
                 >
                   <option value="">Choose a saved offer...</option>
+                  {demoOffer && <option value="__demo__">Demo Tech Co. — ₹18.0L (practice)</option>}
                   {savedOffers.map((o) => (
                     <option key={o.documentId} value={o.documentId}>
                       {o.companyName} — ₹{((o.ctcAnnual || 0) / 100000).toFixed(1)}L
