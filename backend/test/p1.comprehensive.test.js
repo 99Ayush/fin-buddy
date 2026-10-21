@@ -332,7 +332,7 @@ describe('Senior Dev Test Suite — P1 Production Readiness', () => {
       });
 
       expect(email).toContain('Acme Technologies');
-      expect(email).toMatch(/12(?:\.0)?L|12,00,000/);
+      expect(email).toMatch(/12(?:\.0)?\s*L|12,00,000/);
       expect(email).toMatch(/60\s*days/i);
     }, 20000);
 

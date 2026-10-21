@@ -78,7 +78,8 @@ const DocumentsPage = () => {
       );
       setActiveTab(2); // Proceed to Review
     } catch (err) {
-      if (err.code === 'SESSION_EXPIRED') {
+      // Demo sessions are local fixtures, never an expired secure session.
+      if (err.code === 'SESSION_EXPIRED' && !sessionToken.startsWith('demo_session_')) {
         showToast('Secure session expired. Please re-upload.', 'error');
         setActiveTab(0);
       } else if (err.code === 'UNSUPPORTED_DOCUMENT') {
@@ -93,11 +94,23 @@ const DocumentsPage = () => {
   };
 
   // Save reviewed fields into reportStore
+  const [saveSuccess, setSaveSuccess] = useState(null);
+
   const handleSaveReport = async () => {
     if (!extractedData) return;
     try {
       const res = await documentsApi.saveDocument(extractedData);
-      showToast(lang === 'hi' ? 'αñªαñ╕αÑìαññαñ╛αñ╡αÑçαñ£αñ╝ αñ╕αñ½αñ▓αññαñ╛αñ¬αÑéαñ░αÑìαñ╡αñò αñ╕αñ╣αÑçαñ£αñ╛ αñùαñ»αñ╛!' : `Saved to Reports! ID: ${res.docId.slice(0, 8)}...`, 'success');
+      const isOfferLetter = extractedData.documentType === 'offer_letter';
+      const baseMsg = lang === 'hi' 
+        ? 'αñªαñ╕αÑìαññαñ╛αñ╡αÑçαñ£αñ╝ αñ╕αñ½αñ▓αññαñ╛αñ¬αÑéαñ░αÑìαñ╡αñò αñ╕αñ╣αÑçαñ£αñ╛ αñùαñ»αñ╛!'
+        : `Saved to Reports! ID: ${res.docId.slice(0, 8)}...`;
+      const msg = isOfferLetter 
+        ? `${baseMsg} Offer letter now available in ⚖️ Offers for counter-email & HR roleplay.`
+        : baseMsg;
+      showToast(msg, 'success');
+      if (isOfferLetter) {
+        setSaveSuccess({ docId: res.docId, docType: extractedData.documentType });
+      }
       setActiveTab(3); // Proceed to Traps
     } catch (e) {
       showToast(e.message || 'Save failed', 'error');
@@ -578,6 +591,48 @@ const DocumentsPage = () => {
                 ))}
               </div>
             </div>
+
+            {saveSuccess && saveSuccess.docType === 'offer_letter' && (
+              <div style={{
+                marginTop: 12,
+                padding: '12px 16px',
+                background: 'linear-gradient(135deg, #dbeafe, #f0f9ff)',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 20 }}>🎉</span>
+                  <div>
+                    <strong style={{ fontSize: 14, color: 'var(--primary)' }}>Offer Letter Saved!</strong>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                      Your offer letter is now available in <strong>Offers Module</strong> for counter-email & HR roleplay.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    window.location.href = '/offers';
+                    setSaveSuccess(null);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-md)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚖️ Go to Offers
+                </button>
+              </div>
+            )}
 
             <div className="panel-body">
               {filteredTraps.length === 0 ? (

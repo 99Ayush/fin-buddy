@@ -3,7 +3,9 @@
  * Communicates with backend /api/documents endpoints with authenticated user header
  */
 
-const API_BASE = '/api/documents';
+import { apiUrl } from '../../../services/apiClient';
+
+const API_BASE = apiUrl('/api/documents');
 
 export function getUserId() {
   let userId = localStorage.getItem('fin-buddy-user-id');
@@ -29,14 +31,23 @@ export async function uploadDocument(file) {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE}/upload`, {
-    method: 'POST',
-    headers: { 'x-user-id': getUserId() },
-    body: formData,
-  });
+  let response;
+  try {
+    response = await fetch(`${API_BASE}/upload`, {
+      method: 'POST',
+      headers: { 'x-user-id': getUserId() },
+      body: formData,
+    });
+  } catch (e) {
+    throw new Error(`Failed to reach the backend (${e.message || 'network error'}). Make sure the backend is running.`);
+  }
 
-  const result = await response.json();
-  if (!response.ok || !result.success) throw new Error(result.error || 'Upload failed');
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    const err = new Error(result.error || 'Upload failed');
+    err.code = result.code;
+    throw err;
+  }
   return result;
 }
 

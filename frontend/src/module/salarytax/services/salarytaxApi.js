@@ -1,12 +1,19 @@
 // salarytaxApi.js: all HTTP calls for the Salary & Tax module (P2)
-const BASE = '/api/salarytax';
+import { apiUrl } from '../../../services/apiClient';
+
+const BASE = apiUrl('/api/salarytax');
 
 const post = async (path, body) => {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (e) {
+    throw new Error(`Failed to reach the backend (${e.message || 'network error'}). Make sure the backend is running.`);
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Request failed');

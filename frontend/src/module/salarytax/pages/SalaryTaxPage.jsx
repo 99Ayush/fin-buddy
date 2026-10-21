@@ -170,6 +170,10 @@ function InHandTab() {
         <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 700 }}>Monthly Breakdown</h3>
         {result ? (
           <>
+            <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', borderRadius: 'var(--radius-md)', padding: '16px 18px', marginBottom: 16, textAlign: 'center' }}>
+              <p style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Net Take-Home / Month</p>
+              <p style={{ fontSize: 30, fontWeight: 900, color: 'var(--primary)', margin: 0, letterSpacing: '-0.02em' }}>{fmt(result.netMonthly)}</p>
+            </div>
             <ResultRow label="Gross Monthly" value={fmt(result.grossMonthly)} />
             <ResultRow label="PF Deduction" value={`- ${fmt(result.pfMonthly)}`} />
             <ResultRow label="Professional Tax" value={`- ${fmt(result.profTaxMonthly)}`} />
@@ -523,30 +527,26 @@ export default function SalaryTaxPage() {
   return (
     <div className="app-container page-wrapper">
       {/* Page Header */}
-      <div style={{ marginBottom: 28 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.03em', margin: '0 0 6px' }}>
-          💰 Salary & Tax Calculator
-        </h1>
-        <p style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
-          FY 2024-25 · Finance Act 2024 · Old & New Regime
-        </p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">💰 Salary & Tax Calculator</h1>
+          <p className="page-subtitle">
+            FY 2024-25 · Finance Act 2024 · Old & New Regime · Deterministic, no LLM math.
+          </p>
+        </div>
       </div>
 
       {/* Tab Bar */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24, flexWrap: 'wrap' }}>
+      <div className="tabs-header">
         {TABS.map((t, i) => (
           <button
             key={t}
+            type="button"
+            className={`tab-btn ${tab === i ? 'active' : ''}`}
             onClick={() => setTab(i)}
-            style={{
-              padding: '8px 16px', borderRadius: 'var(--radius-full)', fontSize: 13,
-              fontWeight: 600, border: 'none', cursor: 'pointer',
-              background: tab === i ? 'var(--primary)' : 'var(--bg-subtle)',
-              color: tab === i ? '#fff' : 'var(--text-secondary)',
-              transition: 'var(--transition)',
-            }}
           >
-            {t}
+            <span className="tab-icon">{t.split(' ')[0]}</span>
+            <span>{t.split(' ').slice(1).join(' ')}</span>
           </button>
         ))}
       </div>

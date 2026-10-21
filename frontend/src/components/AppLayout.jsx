@@ -56,12 +56,12 @@ export const AppLayout = ({ children }) => {
 
   // All currently registered modules are available in the app.
   const navLinks = [
-    { to: '/home',      label: 'Home',                  tier: 'p3-live' },
-    { to: '/documents', label: 'Documents',            tier: 'p1' },
-    { to: '/salarytax', label: 'Salary & Tax',          tier: 'live' },
-    { to: '/moneyplan', label: 'Money Plan',            tier: 'live' },
-    { to: '/offers',    label: 'Offers & Negotiation',  tier: 'p1' },
-    { to: '/assistant', label: 'Help Bot',               tier: 'p3-live' },
+    { to: '/home',      label: lang === 'hi' ? 'होम' : 'Home',                 icon: '🏠', tier: 'p3-live' },
+    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़' : 'Documents',        icon: '📄', tier: 'p1' },
+    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर' : 'Salary & Tax',    icon: '💰', tier: 'live' },
+    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना' : 'Money Plan',    icon: '📈', tier: 'live' },
+    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत' : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
+    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक' : 'Help Bot',         icon: '🤖', tier: 'p3-live' },
   ];
 
   return (
@@ -85,10 +85,10 @@ export const AppLayout = ({ children }) => {
                       to={item.to}
                       className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
                     >
+                      <span>{item.icon}</span>
                       <span>{item.label}</span>
                     </NavLink>
                   ))}
-
               </nav>
 
               <div className="nav-controls">
