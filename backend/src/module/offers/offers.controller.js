@@ -28,7 +28,10 @@ async function compareOffers(req, res) {
     }
 
     if (manualOffers && manualOffers.length > 0) {
-      offers = [...offers, ...manualOffers];
+      // The comparison form intentionally uses flat, human-friendly field
+      // names. Convert them once at the API boundary to the offer-document
+      // shape used by the deterministic comparison service.
+      offers = [...offers, ...manualOffers.map(normalizeManualOffer)];
     }
 
     if (offers.length < 2 || offers.length > 4) {
@@ -47,6 +50,41 @@ async function compareOffers(req, res) {
     console.error('[OFFERS] Compare error:', error.message);
     res.status(400).json({ error: error.message, code: 'COMPARE_FAILED' });
   }
+}
+
+function normalizeManualOffer(offer) {
+  if (offer.compensation) return offer;
+
+  const ctcAnnual = Number(offer.ctcAnnual) || 0;
+  const baseSalary = Number(offer.baseSalary) || 0;
+  const hra = Number(offer.hra) || 0;
+  const variableBonus = Number(offer.variableBonus) || 0;
+
+  return {
+    documentId: offer.documentId || `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    documentType: 'offer_letter',
+    company: { name: offer.companyName || 'Untitled offer' },
+    compensation: {
+      ctcAnnual,
+      ctcMonthly: Math.round(ctcAnnual / 12),
+      fixedComponent: {
+        baseSalary,
+        hra,
+        // Manual entry does not ask for this separately. Reconcile the
+        // remaining fixed CTC after variable pay rather than dropping it.
+        specialAllowance: Math.max(0, ctcAnnual - baseSalary - hra - variableBonus),
+        pfEmployee: Number(offer.pfEmployee) || 0,
+        professionalTax: Number(offer.professionalTax) || 2400,
+      },
+      variableComponent: { performanceBonus: variableBonus },
+      joiningBonus: Number(offer.joiningBonus) || 0,
+    },
+    contractualTerms: {
+      noticePeriodDays: Number(offer.noticePeriod) || 0,
+      bondPenaltyAmount: Number(offer.bondAmount) || 0,
+      bondDurationMonths: Number(offer.bondDurationMonths) || 0,
+    },
+  };
 }
 
 /**

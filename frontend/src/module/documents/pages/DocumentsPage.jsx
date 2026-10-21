@@ -167,6 +167,14 @@ const DocumentsPage = () => {
     setIsExtracting(true);
 
     try {
+      // Text fixtures cannot be sent through the production PDF/image upload
+      // endpoint.  A locally-created demo session is therefore intentionally
+      // extracted from the deterministic fixture below.
+      if (sessionToken.startsWith('demo_session_')) {
+        const err = new Error('Local demo session');
+        err.code = 'DEMO_SESSION';
+        throw err;
+      }
       const res = await documentsApi.extractDocument(sessionToken);
       setExtractedData(res.extractedData);
       setTrapFlags(res.trapFlags || []);
@@ -174,7 +182,7 @@ const DocumentsPage = () => {
       setActiveTab(2); // Proceed to Review
     } catch (err) {
       // If session expired or mock fallback needed
-      if (err.code === 'SESSION_EXPIRED') {
+      if (err.code === 'SESSION_EXPIRED' && !sessionToken.startsWith('demo_session_')) {
         showToast('Secure session expired. Please re-upload.', 'error');
         setActiveTab(0);
       } else {

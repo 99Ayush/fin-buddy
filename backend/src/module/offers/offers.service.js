@@ -59,7 +59,18 @@ async function compareOffers(offers, userId) {
       // Metadata for "Why this number?" tooltips
       metadata: {
         ctcAnnual: { value: offer.compensation?.ctcAnnual, formula: 'Sum of all fixed + variable components', source: 'Offer letter' },
-        monthlyInHand: { value: salaryCalc.netMonthly, formula: salaryCalc.breakdown.formula, inputs: salaryCalc.breakdown.inputs, assumptions: salaryCalc.breakdown.assumptions, source: 'P2 SalaryTax calculator (deterministic)' },
+        monthlyInHand: {
+          value: salaryCalc.netMonthly,
+          formula: '(Gross annual salary − employee PF − professional tax − income tax) / 12',
+          inputs: {
+            grossAnnual: salaryCalc.grossAnnual,
+            pfAnnual: salaryCalc.pfMonthly * 12,
+            professionalTaxAnnual: salaryCalc.profTaxMonthly * 12,
+            incomeTaxAnnual: salaryCalc.annualTax,
+          },
+          assumptions: ['New tax regime', 'Metro city', 'Age 30'],
+          source: 'P2 SalaryTax calculator (deterministic)',
+        },
         fixedMonthly: { value: fixedMonthly, formula: '(Basic + HRA + Special Allowance) / 12', inputs: { basic: offer.compensation?.fixedComponent?.baseSalary, hra: offer.compensation?.fixedComponent?.hra, special: offer.compensation?.fixedComponent?.specialAllowance }, source: 'Offer letter fixed components' },
         variablePct: { value: variablePct, formula: 'Performance Bonus / CTC × 100', inputs: { bonus: offer.compensation?.variableComponent?.performanceBonus, ctc: offer.compensation?.ctcAnnual }, source: 'Offer letter variable component' },
       },

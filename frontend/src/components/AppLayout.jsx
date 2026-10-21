@@ -54,14 +54,14 @@ export const AppLayout = ({ children }) => {
     }, duration);
   };
 
-  // P1 = live; P2/P3 = under development
+  // All currently registered modules are available in the app.
   const navLinks = [
     { to: '/home',      label: lang === 'hi' ? 'होम'              : 'Home',              icon: '🏠', tier: 'p3-live' },
-    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़'         : 'Documents',          icon: '📄', tier: 'p1' },
-    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत'   : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
-    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर'       : 'Salary & Tax',       icon: '💰', tier: 'p2' },
-    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना'     : 'Money Plan',         icon: '📈', tier: 'p2' },
-    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक'        : 'Ask & CA Help',      icon: '🤖', tier: 'p3-live' },
+    { to: '/documents', label: lang === 'hi' ? 'दस्तावेज़' : 'Documents', icon: '📄', tier: 'p1' },
+    { to: '/offers',    label: lang === 'hi' ? 'ऑफ़र और बातचीत' : 'Offers & Negotiate', icon: '💼', tier: 'p1' },
+    { to: '/salarytax', label: lang === 'hi' ? 'वेतन और कर' : 'Salary & Tax', icon: '💰', tier: 'live' },
+    { to: '/moneyplan', label: lang === 'hi' ? 'वित्तीय योजना' : 'Money Plan', icon: '📈', tier: 'live' },
+    { to: '/assistant', label: lang === 'hi' ? 'एआई सहायक' : 'Ask & CA Help', icon: '🤖', tier: 'p3-live' },
   ];
 
   return (
@@ -90,9 +90,9 @@ export const AppLayout = ({ children }) => {
               </NavLink>
 
               <nav className="nav-links">
-                {/* P1 items */}
+                {/* Available tools */}
                 {navLinks
-                  .filter((item) => item.tier === 'p1' || item.tier === 'p3-live')
+                    .filter((item) => item.tier === 'p1' || item.tier === 'p3-live' || item.tier === 'live')
                   .map((item) => (
                     <NavLink
                       key={item.to}
@@ -104,45 +104,6 @@ export const AppLayout = ({ children }) => {
                     </NavLink>
                   ))}
 
-                {/* Divider */}
-                <span
-                  style={{
-                    width: 1,
-                    height: 24,
-                    background: 'var(--border-subtle)',
-                    margin: '0 6px',
-                    flexShrink: 0,
-                  }}
-                />
-
-                {/* P2/P3 items — dimmed, with "Soon" badge */}
-                {navLinks
-                  .filter((item) => item.tier === 'p2' || item.tier === 'p3')
-                  .map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-                      style={{ opacity: 0.5 }}
-                      title={`Under development by ${item.tier.toUpperCase()} team`}
-                    >
-                      <span>{item.icon}</span>
-                      <span>{item.label}</span>
-                      <span
-                        style={{
-                          fontSize: 9,
-                          padding: '1px 5px',
-                          background: '#fef9c3',
-                          color: '#854d0e',
-                          border: '1px solid #fde047',
-                          borderRadius: 9999,
-                          fontWeight: 700,
-                        }}
-                      >
-                        Soon
-                      </span>
-                    </NavLink>
-                  ))}
               </nav>
 
               <div className="nav-controls">

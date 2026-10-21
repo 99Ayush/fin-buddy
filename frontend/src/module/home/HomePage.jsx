@@ -26,9 +26,9 @@ const MOCK_MOVERS = [
 
 const ACTIONS = [
   { icon: '📄', text: 'Upload your latest payslip', route: '/documents' },
-  { icon: '⚖️', text: 'Compare old vs new tax regime', route: '/salary-tax' },
-  { icon: '🏦', text: 'Check your 80C gap', route: '/salary-tax' },
-  { icon: '💬', text: 'Ask the AI about Form 16', route: '/ask' },
+  { icon: '⚖️', text: 'Compare old vs new tax regime', route: '/salarytax' },
+  { icon: '🏦', text: 'Check your 80C gap', route: '/salarytax' },
+  { icon: '💬', text: 'Ask the AI about Form 16', route: '/assistant' },
 ];
 
 export default function HomePage() {
