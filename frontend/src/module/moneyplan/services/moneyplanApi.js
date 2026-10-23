@@ -37,8 +37,5 @@ export const createGoal = (body) => post('/goals', body);
 /** POST /api/moneyplan/emi — loan EMI calculator */
 export const calcEmi = (params) => post('/emi', params);
 
-/** POST /api/moneyplan/prepay-vs-invest — prepay vs invest simulator */
-export const prepayVsInvest = (params) => post('/prepay-vs-invest', params);
-
 /** POST /api/moneyplan/regret — regret simulator */
 export const regretSimulator = (params) => post('/regret', params);

@@ -63,74 +63,6 @@ router.post('/emi', (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// ROUTE: POST /api/moneyplan/prepay-vs-invest
-// Compare paying off a loan early vs investing the same amount
-// ─────────────────────────────────────────────────────────────
-router.post('/prepay-vs-invest', (req, res) => {
-  try {
-    const {
-      loanOutstanding = 0,
-      loanInterestRate = 0,    // annual % e.g. 9
-      remainingMonths = 0,
-      prepayAmount = 0,
-      investmentReturnRate = 12, // annual % e.g. 12 (equity MF estimate)
-      investmentHorizonMonths = 0,
-    } = req.body;
-
-    if (prepayAmount <= 0) return res.status(400).json({ error: 'prepayAmount must be positive.' });
-
-    // Option A: Prepay loan
-    const r = loanInterestRate / 12 / 100;
-    const n = remainingMonths;
-    const currentEmi = n > 0 && r > 0
-      ? Math.round((loanOutstanding * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1))
-      : 0;
-    const totalInterestWithout = currentEmi * n - loanOutstanding;
-    // After prepayment, recalculate interest saved (simplified: interest on prepay amount for remaining tenure)
-    const interestSaved = prepayAmount * r * n;
-
-    // Option B: Invest instead
-    const ir = investmentReturnRate / 12 / 100;
-    const h = investmentHorizonMonths || remainingMonths;
-    const investedValue = Math.round(prepayAmount * Math.pow(1 + ir, h));
-    const investmentGain = investedValue - prepayAmount;
-
-    const netBenefit = investmentGain - interestSaved;
-
-    res.json({
-      status: 'ok',
-      prepayOption: {
-        prepayAmount: Math.round(prepayAmount),
-        estimatedInterestSaved: Math.round(interestSaved),
-        benefit: Math.round(interestSaved),
-        description: `Prepaying ₹${prepayAmount.toLocaleString('en-IN')} saves ~₹${Math.round(interestSaved).toLocaleString('en-IN')} in interest.`,
-      },
-      investOption: {
-        prepayAmount: Math.round(prepayAmount),
-        investedValueAfter: investedValue,
-        estimatedGain: Math.round(investmentGain),
-        assumedReturnRate: `${investmentReturnRate}% p.a.`,
-        horizonMonths: h,
-        description: `Investing ₹${prepayAmount.toLocaleString('en-IN')} at ${investmentReturnRate}% for ${h} months grows to ~₹${investedValue.toLocaleString('en-IN')}.`,
-      },
-      recommendation: netBenefit > 0
-        ? `Investing appears to generate ~₹${Math.round(netBenefit).toLocaleString('en-IN')} more than prepaying, assuming ${investmentReturnRate}% returns.`
-        : `Prepaying appears to save ~₹${Math.round(-netBenefit).toLocaleString('en-IN')} more than investing at ${investmentReturnRate}% returns.`,
-      disclaimer: 'Investment returns are NOT guaranteed. Past performance does not indicate future results. This is educational only.',
-      assumptions: [
-        `Loan interest rate: ${loanInterestRate}% p.a.`,
-        `Investment return: ${investmentReturnRate}% p.a. (not guaranteed)`,
-        `Horizon: ${h} months`,
-        'No tax on investment gains assumed for simplicity.',
-      ],
-    });
-  } catch (err) {
-    console.error('[moneyplan] prepay-vs-invest error', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─────────────────────────────────────────────────────────────
 // ROUTE: POST /api/moneyplan/regret
 // "What if I had started investing X earlier?" simulator
 // ─────────────────────────────────────────────────────────────
@@ -187,7 +119,7 @@ router.post('/regret', (req, res) => {
 });
 
 router.get('/', (req, res) => {
-  res.json({ message: 'MoneyPlan module - P2 owned', endpoints: ['/health', '/goals', '/score', '/emi', '/prepay-vs-invest', '/regret'] });
+  res.json({ message: 'MoneyPlan module - P2 owned', endpoints: ['/health', '/goals', '/score', '/emi', '/regret'] });
 });
 
 router.get('/health', (req, res) => res.json({ status: 'ok', module: 'moneyplan' }));

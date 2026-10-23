@@ -1,6 +1,6 @@
 /**
  * Money Plan Page — P2 Module
- * 5 tabs: Health Score | Goals | EMI Calculator | Prepay vs Invest | Regret Simulator
+ * 4 tabs: Health Score | Goals | EMI Calculator | Regret Simulator
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -8,14 +8,13 @@ import {
   getGoals,
   createGoal,
   calcEmi,
-  prepayVsInvest,
   regretSimulator,
 } from '../services/moneyplanApi';
 
 const fmt = (n) =>
   typeof n === 'number' ? '₹' + Math.round(n).toLocaleString('en-IN') : n;
 
-const TABS = ['🏥 Health Score', '🎯 Goals', '🏦 EMI Calculator', '🔁 Prepay vs Invest', '⏰ Regret Simulator'];
+const TABS = ['🏥 Health Score', '🎯 Goals', '🏦 EMI Calculator', '⏰ Regret Simulator'];
 
 // ── Shared UI ────────────────────────────────────────────────
 function Label({ children }) {
@@ -338,80 +337,7 @@ function EmiTab() {
   );
 }
 
-// ── Tab 4: Prepay vs Invest ──────────────────────────────────
-function PrepayVsInvestTab() {
-  const [form, setForm] = useState({ loanOutstanding: 1500000, loanInterestRate: 9, remainingMonths: 180, prepayAmount: 200000, investmentReturnRate: 12, investmentHorizonMonths: 180 });
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const run = async () => {
-    setLoading(true); setError('');
-    try { setResult(await prepayVsInvest(form)); }
-    catch (e) { setError(e.message); }
-    finally { setLoading(false); }
-  };
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-      <Card>
-        <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 700 }}>Loan & Investment Details</h3>
-        <Input label="Loan Outstanding (₹)" value={form.loanOutstanding} onChange={set('loanOutstanding')} />
-        <div style={{ marginBottom: 16 }}>
-          <Label>Loan Interest Rate — {form.loanInterestRate}% p.a.</Label>
-          <input type="range" min={5} max={20} step={0.25} value={form.loanInterestRate}
-            onChange={(e) => set('loanInterestRate')(Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--danger)' }} />
-        </div>
-        <Input label="Remaining Tenure (months)" value={form.remainingMonths} onChange={set('remainingMonths')} />
-        <Input label="Prepayment Amount (₹)" value={form.prepayAmount} onChange={set('prepayAmount')} />
-        <div style={{ marginBottom: 16 }}>
-          <Label>Expected Investment Return — {form.investmentReturnRate}% p.a.</Label>
-          <input type="range" min={4} max={20} step={0.5} value={form.investmentReturnRate}
-            onChange={(e) => set('investmentReturnRate')(Number(e.target.value))}
-            style={{ width: '100%', accentColor: 'var(--success)' }} />
-        </div>
-        <Btn onClick={run} loading={loading}>Compare Options</Btn>
-        <ErrorBox msg={error} />
-      </Card>
-
-      <Card>
-        <h3 style={{ marginBottom: 16, fontSize: 16, fontWeight: 700 }}>Which Option Wins?</h3>
-        {result ? (
-          <>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-              <div style={{ background: 'var(--danger-light)', border: '1px solid var(--danger-border)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--danger)', marginBottom: 6 }}>🏦 PREPAY LOAN</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--danger)' }}>{fmt(result.prepayOption.estimatedInterestSaved)}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>interest saved</div>
-              </div>
-              <div style={{ background: 'var(--success-light)', border: '1px solid var(--success-border)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--success)', marginBottom: 6 }}>📈 INVEST INSTEAD</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: 'var(--success)' }}>{fmt(result.investOption.estimatedGain)}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>estimated gain</div>
-              </div>
-            </div>
-
-            <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-border)', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--primary)' }}>💡 Verdict</div>
-              <div style={{ fontSize: 13, color: 'var(--text-main)', marginTop: 4 }}>{result.recommendation}</div>
-            </div>
-
-            {result.assumptions.map((a, i) => (
-              <p key={i} style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 2 }}>• {a}</p>
-            ))}
-            <Disclaimer text={result.disclaimer} />
-          </>
-        ) : (
-          <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 40, textAlign: 'center' }}>Enter your loan and investment details to compare.</p>
-        )}
-      </Card>
-    </div>
-  );
-}
-
-// ── Tab 5: Regret Simulator ──────────────────────────────────
+// ── Tab 4: Regret Simulator ──────────────────────────────────
 function RegretTab() {
   const [form, setForm] = useState({ monthlyAmount: 5000, yearsAgo: 5, annualReturnRate: 12, scenarioLabel: 'SIP in Index Fund' });
   const [result, setResult] = useState(null);
@@ -426,12 +352,35 @@ function RegretTab() {
     finally { setLoading(false); }
   };
 
+  useEffect(() => { run(); }, [form]);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
       <Card>
         <h3 style={{ marginBottom: 4, fontSize: 16, fontWeight: 700 }}>What If I Had Started Earlier?</h3>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 20 }}>See the compounding you missed — and why starting today matters</p>
-        <Input label="Scenario Name" value={form.scenarioLabel} onChange={set('scenarioLabel')} type="text" placeholder="e.g. SIP in Index Fund" />
+        <div style={{ marginBottom: 16 }}>
+          <Label>Scenario Name</Label>
+          <select
+            value={form.scenarioLabel}
+            onChange={(e) => set('scenarioLabel')(e.target.value)}
+            style={{
+              width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-sm)',
+              border: '1.5px solid var(--border-subtle)', fontSize: 14,
+              background: '#fff', color: 'var(--text-main)', outline: 'none',
+              cursor: 'pointer', appearance: 'auto',
+            }}
+            onFocus={e => (e.target.style.borderColor = 'var(--primary)')}
+            onBlur={e => (e.target.style.borderColor = 'var(--border-subtle)')}
+          >
+            <option value="SIP in Index Fund">SIP in Index Fund</option>
+            <option value="SIP in Mutual Funds">SIP in Mutual Funds</option>
+            <option value="Gold Investment">Gold Investment</option>
+            <option value="Fixed Deposit (FD)">Fixed Deposit (FD)</option>
+            <option value="Recurring Deposit (RD)">Recurring Deposit (RD)</option>
+            <option value="Savings Account">Savings Account</option>
+          </select>
+        </div>
         <Input label="Monthly Amount (₹)" value={form.monthlyAmount} onChange={set('monthlyAmount')} />
         <div style={{ marginBottom: 16 }}>
           <Label>Years Ago I Should Have Started — {form.yearsAgo} years</Label>
@@ -445,8 +394,6 @@ function RegretTab() {
             onChange={(e) => set('annualReturnRate')(Number(e.target.value))}
             style={{ width: '100%', accentColor: 'var(--primary)' }} />
         </div>
-        <Btn onClick={run} loading={loading}>Show the Regret</Btn>
-        <ErrorBox msg={error} />
       </Card>
 
       <Card>
@@ -491,7 +438,7 @@ function RegretTab() {
 }
 
 // ── Main Page ────────────────────────────────────────────────
-const COMPONENTS = [HealthScoreTab, GoalsTab, EmiTab, PrepayVsInvestTab, RegretTab];
+const COMPONENTS = [HealthScoreTab, GoalsTab, EmiTab, RegretTab];
 
 export default function MoneyPlanPage() {
   const [tab, setTab] = useState(0);
