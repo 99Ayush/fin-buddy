@@ -163,7 +163,7 @@ This started as a three-person build, so the repository contains module skeleton
 
 ## Stack
 
-**Backend** — Node.js, Express, MongoDB / Mongoose, JWT + bcrypt, Helmet, Multer, AJV, Tesseract.js, pdf-parse, Node test runner with Jest + Supertest
+**Backend** — Node.js, Express, MongoDB / Mongoose, JWT + bcrypt, Helmet, Multer, AJV, Tesseract.js, pdf-parse, Jest + Supertest
 **Frontend** — React 18, Vite, React Router, styled-components
 
 ## License
