@@ -1,171 +1,165 @@
-# Fin-Buddy
+<div align="center">
 
-**An AI assistant that reads the fine print in your job offer.**
+# 💸 Fin-Buddy
 
-Offer letters and payslips are where a lot of tech salaries quietly evaporate — variable pay that never pays out, retention bonds that claw back your earnings, "CTC" that bundles in things you will never actually receive. Fin-Buddy reads those documents, extracts the real numbers, explains the clauses in plain language, and lets you compare two offers on **in-hand pay** instead of headline CTC.
+**An AI assistant that reads the fine print in your job offer — and refuses to do the arithmetic.**
 
-> **Core design rule: LLMs extract, code calculates.**
-> Every rupee is computed by deterministic JavaScript with a visible formula. The language model is only ever allowed to *read* and *explain* a document — never to do arithmetic, and never to invent a tax figure.
+[![Node](https://img.shields.io/badge/Node.js-%E2%89%A518-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2ea44f?style=for-the-badge)](LICENSE)
+
+[Pipeline](#the-document-pipeline) · [Offers suite](#the-offers-suite) · [Run locally](#run-locally) · [API](#api)
+
+</div>
 
 ---
 
-## The problem
+Offer letters are where a lot of salaries quietly evaporate: variable pay that never pays out, retention bonds that claw back your earnings, "CTC" that bundles in money you will never receive.
+
+Fin-Buddy reads the document, extracts the real numbers, explains the risky clauses in plain language, and compares two offers on **in-hand pay** instead of headline CTC.
+
+> **The design rule is the whole project: LLMs extract, code calculates.**
+> Every rupee is computed by deterministic JavaScript with a visible formula. The model is only ever allowed to *read* and *explain* a document — never to do arithmetic, and never to invent a tax figure.
+
+## The problem, concretely
 
 | What the offer says | What it actually means |
-| --- | --- |
-| ₹18 LPA CTC | ₹12.4 LPA fixed + ₹3.6 LPA variable "subject to performance" + ₹2 LPA stock that vests over 4 years |
+| :--- | :--- |
+| ₹18 LPA CTC | ₹12.4 LPA fixed + ₹3.6 LPA variable "subject to performance" + ₹2 LPA stock vesting over four years |
 | "Retention bonus" | A clawback — leave early and you repay it |
-| "Notice period 90 days" | Your next employer will hesitate, and you may owe salary in lieu |
-| "ESOPs worth ₹X" | Paper value at the *current* valuation, before dilution and taxes |
+| "Notice period: 90 days" | Your next employer hesitates, and you may owe salary in lieu |
+| "ESOPs worth ₹X" | Paper value at today's valuation, before dilution and tax |
 
-Most freshers sign without decoding any of this. Fin-Buddy turns the document into a structured, explained comparison.
+## The document pipeline
 
----
+Upload a PDF or image of an offer letter, payslip, Form-16 or loan agreement (5 MB max, PDF/PNG/JPG):
 
-## What it does
+```text
+upload ──► OCR ──► local PII masking ──► LLM extraction ──► AJV schema validation ──► trap engine
+  │           │            │                    │                    │                     │
+  │           │            │                    │                    └── reject malformed  └── severity +
+  │           │            │                    │                        or partial output    explanation
+  │           │            │                    └── JSON only, no prose
+  │           │            └── PAN, Aadhaar, phone, email, account, names redacted
+  │           │                before anything leaves the machine
+  │           └── digital PDFs parsed directly; scans fall back to Tesseract
+  └── in-memory only, never written to disk
+```
 
-### 1. Documents pipeline
-Upload a PDF or image of an offer letter, payslip, Form-16, or loan document:
+Four guarantees follow from that ordering:
 
-1. **Upload → OCR** — digital PDFs are parsed directly; scanned pages fall back to Tesseract OCR.
-2. **PII masking** — PAN, Aadhaar, phone, email, bank account and names are redacted **locally, before any network call**.
-3. **LLM extraction** — the masked text goes to the model, which returns JSON only.
-4. **Schema validation** — every response is validated with AJV against a strict schema. Malformed or partial output is rejected rather than trusted.
-5. **Trap detection** — a rule engine flags bonds, clawbacks, unpaid-notice clauses, non-compete traps and unrealisable variable pay, each with a severity and a plain-language explanation.
+1. **Raw documents never reach a third-party API** — masking happens first, locally.
+2. **Malformed model output is rejected**, not repaired into a plausible-looking object.
+3. **Every generated number carries provenance**: `{ value, formula, inputs, assumptions, source }`.
+4. **Trap detection is a rule engine**, not a prompt: bonds, clawbacks, unpaid-notice clauses, non-competes and unrealisable variable pay each get a severity and a written explanation.
 
-### 2. Offers suite
-- **Compare 2–4 offers** side by side on computed in-hand pay, not CTC.
-- **ESOP projection** with Bear / Base / Bull scenarios, vesting schedules and tax treatment.
-- **Counter-offer email** generation using only the numbers already verified by the deterministic engine.
-- **HR role-play** — practise the negotiation against a configurable persona (friendly / stubborn / aggressive).
-- **Scorecard** — post-negotiation feedback on assertiveness, professionalism, leverage, preparation and creativity.
+## The offers suite
 
----
+| Endpoint | What it does |
+| :--- | :--- |
+| `POST /api/offers/compare` | Compare 2–4 offers on computed in-hand pay, never on CTC |
+| `POST /api/offers/esop` | ESOP projections across Bear / Base / Bull, with vesting schedule and tax treatment |
+| `POST /api/offers/email` | Counter-offer email built only from figures the engine already verified |
+| `POST /api/offers/roleplay` | One negotiation turn against a configurable HR persona (friendly / stubborn / aggressive) |
+| `POST /api/offers/scorecard` | Post-session feedback on assertiveness, professionalism, leverage, preparation, creativity |
+| `GET /api/offers/my-offers` | Saved offer letters for the signed-in user |
+
+## Salary, tax and planning
+
+The tax engine is real code, not a stub — slab-by-slab, with surcharge, cess and the FY 2024-25 new-regime slabs:
+
+```text
+POST /api/salarytax/calculate     → slab breakdown, regime comparison
+POST /api/salarytax/in-hand       → CTC → in-hand, with HRA exemption, standard
+                                    deduction, professional tax and deduction log
+```
+
+`/api/moneyplan` adds EMI, prepay-vs-invest comparison, regret analysis, a financial-health score and goal tracking. `/api/assistant` keeps per-user conversations and submits CA review requests with a generated document pack.
 
 ## Architecture
 
-```
+```text
 fin-buddy/
 ├── backend/                        Node.js + Express
 │   ├── src/
-│   │   ├── app.js                  Server entry, route registration
+│   │   ├── app.js                  Server entry, module registration, error handling
 │   │   ├── module/
-│   │   │   ├── documents/          Upload, OCR, extraction, trap engine
-│   │   │   ├── offers/             Compare, ESOP, counter-email, role-play
-│   │   │   ├── salarytax/          In-hand calculator, payslip audit
-│   │   │   ├── moneyplan/          Financial health and goals
-│   │   │   ├── home/               Landing, auth, timeline
-│   │   │   └── assistant/          Tax assistant, CA review requests
+│   │   │   ├── documents/          Upload, OCR, masking, extraction, trap engine
+│   │   │   ├── offers/             Compare, ESOP, counter-email, role-play, scorecard
+│   │   │   ├── salarytax/          Slab calculator, in-hand, HRA, surcharge
+│   │   │   ├── moneyplan/          EMI, prepay-vs-invest, score, goals
+│   │   │   ├── assistant/          Chat conversations, CA review requests
+│   │   │   ├── home/               Dashboard, markets, stocks
+│   │   │   └── auth/               JWT signup/login, middleware
 │   │   └── shared/
-│   │       ├── ai/                 Masking, OCR, LLM client, explainers
+│   │       ├── ai/                 Masking, OCR, provider adapter, explainers
 │   │       ├── validator/          JSON schemas + AJV validation
 │   │       ├── reportStore/        Session-scoped document storage
-│   │       └── data/fixtures/      Seed data
+│   │       └── data/fixtures/      Seeded sample documents and traps
 │   └── eval/                       Precision/recall + hybrid-vs-LLM benchmark
-├── frontend/                       React 18 + Vite
-│   └── src/
-│       ├── AppRoutes.jsx
-│       └── module/                 One folder per backend module
-└── README.md
+└── frontend/                       React 18 + Vite, one folder per backend module
 ```
 
-**Module boundaries are enforced:** a module is only reachable through its `index.js`, and cross-module data flows through the shared `reportStore`. No relative imports across module boundaries.
+**Module boundaries are enforced:** a module is reachable only through its `index.js`, and cross-module data flows through `shared/reportStore`. No relative imports across module boundaries.
 
----
+**Provider-agnostic by design:** `LLM_PROVIDER` selects Grok (xAI), Gemini, Groq or OpenRouter, with automatic fallback to whichever provider has a key. If none do, the app degrades explicitly instead of inventing values.
 
-## Privacy shield
-
-Financial documents are the most sensitive thing a user will ever upload, so the order of operations matters:
-
-```
-raw document  →  local PII redaction  →  masked text  →  LLM  →  JSON  →  schema validation
-                                                                              ↓
-                                                              re-attach values locally
-```
-
-- **Raw documents never reach a third-party API.**
-- Files are processed **in memory** and unlinked immediately; only the user's reviewed extraction is persisted.
-- Every generated number carries its provenance: `{ value, formula, inputs, assumptions, source }`.
-
----
-
-## API
-
-### `/api/documents`
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/upload` | Upload → OCR → mask → returns a session token and masked preview |
-| `POST` | `/extract` | Token → LLM extraction → schema validation → trap detection |
-| `POST` | `/save` | Persist a reviewed extraction |
-| `GET` | `/` | List the user's documents |
-| `GET` | `/:id` | Fetch one extraction report |
-| `PUT` | `/:id` | Apply user corrections |
-| `GET` | `/:id/flags` | Trap flags for a document |
-| `DELETE` | `/:id` | Delete a document |
-
-### `/api/offers`
-| Method | Endpoint | Description |
-| --- | --- | --- |
-| `POST` | `/compare` | Compare 2–4 offers with deterministic in-hand calculation |
-| `POST` | `/esop` | ESOP projections (Bear / Base / Bull) |
-| `POST` | `/email` | Counter-offer email from verified figures |
-| `POST` | `/roleplay` | One HR negotiation turn against a persona |
-| `POST` | `/scorecard` | Score a completed negotiation session |
-| `GET` | `/my-offers` | List saved offer letters |
-
----
-
-## Running locally
+## Run locally
 
 **Backend**
+
 ```bash
 cd backend
 npm install
-npm run seed     # populate reportStore with sample offers, payslips and traps
-npm run dev      # http://localhost:3000
+cp .env.example .env      # PORT=4000, MONGODB_URI, JWT_SECRET, one LLM key
+npm run seed              # sample offers, payslips and trap fixtures
+npm run dev               # http://localhost:4000
 ```
 
-**Frontend**
+**Frontend** (separate terminal)
+
 ```bash
 cd frontend
 npm install
-npm run dev      # http://localhost:5173  (proxies /api to the backend)
+npm run dev               # http://localhost:5173, proxies /api → :4000
 ```
 
-**Environment**
-```bash
-LLM_API_KEY=your_key
-LLM_ENDPOINT=...
-```
+MongoDB is required for persistence; the Vite config proxies to port **4000**, so keep `PORT=4000` in `backend/.env` (the default when `PORT` is unset is 3000).
 
----
+## API map
+
+| Mount | Routes |
+| :--- | :--- |
+| `/api/auth` | signup, login |
+| `/api/documents` | `/upload`, `/extract`, `/save`, `/`, `/:id`, `/:id/flags`, `DELETE /:id` |
+| `/api/offers` | compare, esop, email, roleplay, scorecard, my-offers |
+| `/api/salarytax` | `/calculate`, `/in-hand` |
+| `/api/moneyplan` | `/emi`, `/prepay-vs-invest`, `/regret`, `/score`, `/goals` |
+| `/api/assistant` | conversations + messages, `ca-requests`, `ca-pack` |
+| `/api/home` | dashboard, markets, stocks |
 
 ## Evaluation harness
 
-Two scripts under `backend/eval` measure the pipeline rather than assume it works:
+Two scripts under `backend/eval` measure the pipeline instead of assuming it works:
 
-- `run_extraction_eval.js` — field-level **precision and recall** of the extraction step against a labelled dataset, plus character-level accuracy.
-- `run_baseline_comparison.js` — the same offers computed two ways: **hybrid pipeline** (deterministic math) versus **LLM-only arithmetic**, to quantify how often models get salary math wrong.
+- **`run_extraction_eval.js`** — field-level precision and recall of extraction against a labelled dataset, plus character-level accuracy and trap-detection F1.
+- **`run_baseline_comparison.js`** — the same offers computed two ways: the hybrid pipeline (deterministic maths) versus LLM-only arithmetic, to quantify how often models get salary maths wrong.
 
-The harness reports trap-detection F1 alongside the extraction metrics. The point of the benchmark is to justify the design rule: if LLM-only arithmetic were accurate, the deterministic engine would be unnecessary complexity. It is not.
+The benchmark exists to justify the design rule. If LLM-only arithmetic were accurate, the deterministic engine would be unnecessary complexity. It is not.
 
----
+## Honest scope
 
-## Scope
-
-This started as a three-person build, so the repository contains module skeletons alongside finished ones.
-
-**Implemented end to end:** documents pipeline (upload → OCR → masking → extraction → traps) and the offers suite (compare, ESOP, counter-offer, role-play, scorecard).
-
-**Interface-level stubs:** salary/tax breakdown, money planning, and the tax assistant.
-
----
+- This started as a **three-person build**, so module maturity varies. Documents, offers, salary/tax, money plan and the assistant are implemented; the home/markets module leans on optional third-party market data.
+- **Not financial or legal advice.** The tax engine models Indian rules for FY 2024-25; it is an educational tool, not a filing system.
+- OCR quality depends on the scan. Digital PDFs parse cleanly; photographed documents may need a second upload.
+- The trap engine flags patterns it knows. An unusual clause form can slip past it — the goal is to make you read the document, not to replace reading it.
 
 ## Stack
 
-**Backend** — Node.js, Express, MongoDB / Mongoose, JWT + bcrypt, Helmet, Multer, AJV, Tesseract.js, pdf-parse, Jest + Supertest
+**Backend** — Node.js, Express, MongoDB/Mongoose, JWT + bcrypt, Helmet, Multer (in-memory), AJV, Tesseract.js, pdf-parse, Jest + Supertest
 **Frontend** — React 18, Vite, React Router, styled-components
 
 ## License
 
-MIT — educational tool. Not financial or legal advice.
+[MIT](LICENSE) · built by [Ayush Kumar](https://github.com/99Ayush)
